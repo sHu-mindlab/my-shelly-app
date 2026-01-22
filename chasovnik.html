@@ -23,7 +23,7 @@
             text-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
 
-        /* Меню за избор на град */
+        /* Меню за избор на град - изчистено */
         select {
             font-size: 22px;
             padding: 10px 30px;
@@ -32,14 +32,14 @@
             background: rgba(0, 0, 0, 0.4);
             color: white;
             cursor: pointer;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             outline: none;
             text-align: center;
             -webkit-appearance: none;
             -moz-appearance: none;
             font-weight: bold;
         }
-
+        
         select:hover {
             background: rgba(255, 255, 255, 0.1);
         }
@@ -50,34 +50,23 @@
         }
 
         .clock {
-            font-size: 120px;
+            font-size: 130px; /* Леко увеличен за акцент */
             font-weight: 700;
             line-height: 1;
-            margin-bottom: 5px;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .sync-info {
-            font-size: 14px;
-            margin-bottom: 25px;
-            font-weight: 400;
-            letter-spacing: 1px;
-            padding: 5px 15px;
-            border-radius: 10px;
-            display: inline-block;
-            background: rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+            font-variant-numeric: tabular-nums; 
         }
 
         .date {
             font-size: 26px;
-            margin-bottom: 40px;
+            margin-bottom: 50px;
             color: #d7d7d7;
             text-transform: uppercase;
             letter-spacing: 3px;
         }
 
         .temp-box {
-            font-size: 75px;
+            font-size: 80px;
             font-weight: bold;
             margin-bottom: 30px;
         }
@@ -96,7 +85,7 @@
             align-items: center;
             gap: 5px;
         }
-
+        
         .detail-label {
             font-size: 14px;
             opacity: 0.6;
@@ -108,20 +97,18 @@
 
     <div class="container">
         <select id="city-select" onchange="getWeather()">
-            <option value="sofia">📍 София</option>
-            <option value="plovdiv">📍 Пловдив</option>
-            <option value="varna">📍 Варна</option>
-            <option value="burgas">📍 Бургас</option>
-            <option value="ruse">📍 Русе</option>
-            <option value="stara_zagora">📍 Стара Загора</option>
-            <option value="pleven">📍 Плевен</option>
-            <option value="blagoevgrad">📍 Благоевград</option>
+            <option value="sofia">София</option>
+            <option value="plovdiv">Пловдив</option>
+            <option value="varna">Варна</option>
+            <option value="burgas">Бургас</option>
+            <option value="ruse">Русе</option>
+            <option value="stara_zagora">Стара Загора</option>
+            <option value="pleven">Плевен</option>
+            <option value="blagoevgrad">Благоевград</option>
         </select>
 
         <div class="clock" id="clock">00:00:00</div>
-
-        <div class="sync-info" id="sync-status">⏳ Зареждане...</div>
-
+        
         <div class="date" id="date">...</div>
 
         <div class="temp-box" id="main-temp">--°C</div>
@@ -140,8 +127,8 @@
 
     <script>
         // --- ГЛОБАЛНИ ПРОМЕНЛИВИ ---
-        let timeOffset = 0;
-
+        let timeOffset = 0; 
+        
         // --- 1. КООРДИНАТИ ---
         const cities = {
             sofia: { lat: 42.6977, lon: 23.3219 },
@@ -154,54 +141,37 @@
             blagoevgrad: { lat: 42.0118, lon: 23.0899 }
         };
 
-        // --- 2. УМНА СИНХРОНИЗАЦИЯ ---
+        // --- 2. СКРИТА СИНХРОНИЗАЦИЯ ---
         async function smartSync() {
-            const statusEl = document.getElementById('sync-status');
-
             try {
-                // Опитваме първо WorldTimeAPI (Europe/Sofia)
-                const response = await fetch('https://worldtimeapi.org/api/timezone/Europe/Sofia', {
-                    cache: "no-store", // Не пази кеш
-                    mode: 'cors'      // Опит за заобикаляне на CORS
+                // Опитваме да вземем време от интернет
+                const response = await fetch('https://worldtimeapi.org/api/timezone/Europe/Sofia', { 
+                    cache: "no-store",
+                    mode: 'cors'
                 });
-
-                if (!response.ok) throw new Error("Server Error");
-
-                const data = await response.json();
-                const serverTime = new Date(data.datetime).getTime();
-                const localTime = new Date().getTime();
-
-                timeOffset = serverTime - localTime;
-
-                statusEl.innerText = "📡 Атомно време (Online)";
-                statusEl.style.color = "#8f8"; // Зелено
-
-            } catch (error) {
-                // АКО СЪРВЪРЪТ НЕ СРАБОТИ (заради браузърна защита):
-                console.warn("Връзката блокирана, минаваме на локален режим.");
-                timeOffset = 0; // Нулираме разликата
-
-                // Проверяваме дали файлът е отворен локално
-                if (window.location.protocol === 'file:') {
-                    statusEl.innerText = "💻 Локално време (Защитата на браузъра спира сървъра)";
-                } else {
-                    statusEl.innerText = "💻 Локално време (Няма връзка)";
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const serverTime = new Date(data.datetime).getTime();
+                    const localTime = new Date().getTime();
+                    timeOffset = serverTime - localTime;
                 }
-                statusEl.style.color = "#ffcc00"; // Жълто
+            } catch (error) {
+                // Ако не стане - не правим нищо (оставаме на локално време), без съобщение
+                timeOffset = 0;
             }
         }
 
         // --- 3. ЧАСОВНИК ---
         function updateClock() {
-            // Използваме офсета (ако има такъв)
             const now = new Date(new Date().getTime() + timeOffset);
-
+            
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-
+            
             document.getElementById('clock').innerText = `${hours}:${minutes}:${seconds}`;
-
+            
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             document.getElementById('date').innerText = now.toLocaleDateString('bg-BG', options);
         }
@@ -213,7 +183,7 @@
                 const coords = cities[selectedCity];
 
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`;
-
+                
                 const response = await fetch(url);
                 const data = await response.json();
                 const current = data.current;
@@ -228,11 +198,11 @@
         }
 
         // --- СТАРТИРАНЕ ---
-        smartSync(); // Опит за синхронизация
-        setInterval(smartSync, 600000); // Проверка на всеки 10 мин
+        smartSync(); 
+        setInterval(smartSync, 600000); // Тиха синхронизация
 
-        setInterval(updateClock, 1000);
-        updateClock();
+        setInterval(updateClock, 1000); 
+        updateClock(); 
 
         getWeather();
         setInterval(getWeather, 600000);
