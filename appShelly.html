@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shelly Control</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --accent: #38bdf8;
+            --on: #22c55e; --off: #64748b; --danger: #ef4444; --text: #f8fafc;
+        }
+
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto;
+            background: var(--bg); color: var(--text);
+            margin: 0; padding: env(safe-area-inset-top) 15px 20px 15px;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh;
+        }
+
+        .app-shell { width: 100%; max-width: 400px; }
+
+        .header { padding: 20px 0; text-align: center; }
+        .header h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.5px; color: var(--accent); }
+
+        /* Волтметър - голям и ясен */
+        .voltage-card {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            padding: 30px 20px; border-radius: 28px; text-align: center;
+            margin-bottom: 20px; border: 1px solid #334155;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .v-val { font-size: 3.5rem; font-weight: 800; line-height: 1; display: block; }
+        .v-unit { color: var(--accent); font-size: 1.2rem; font-weight: bold; }
+
+        /* Сензори в мрежа */
+        .sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .s-box {
+            background: var(--card); padding: 15px; border-radius: 20px;
+            text-align: center; border: 1px solid #334155;
+        }
+        .s-val { font-size: 1.2rem; font-weight: bold; display: block; margin-top: 4px; }
+        .s-lbl { font-size: 0.7rem; color: #94a3b8; font-weight: 600; }
+
+        /* Контрол на каналите */
+        .relay-card {
+            background: var(--card); padding: 20px; border-radius: 24px;
+            margin-bottom: 15px; border: 1px solid #334155;
+        }
+        .relay-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .relay-name { font-weight: bold; font-size: 0.9rem; }
+        .status-pill {
+            padding: 4px 12px; border-radius: 20px; font-size: 0.7rem;
+            font-weight: 800; background: #0f172a; transition: 0.3s;
+        }
+        .status-pill.active { color: var(--on); box-shadow: 0 0 10px rgba(34,229,94,0.2); }
+
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button {
+            border: none; padding: 16px; border-radius: 16px;
+            font-size: 0.85rem; font-weight: bold; cursor: pointer;
+            color: white; transition: transform 0.1s, opacity 0.2s;
+        }
+        .btn-on { background: var(--on); }
+        .btn-off { background: var(--danger); }
+        button:active { transform: scale(0.96); opacity: 0.9; }
+
+        #refresh-bar { font-size: 0.65rem; color: #64748b; text-align: center; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+    <div class="header">
+        <h1>Smart Control</h1>
+    </div>
+
+    <div class="voltage-card">
+        <span id="v-val" class="v-val">--.-</span>
+        <span class="v-unit">VOLTS DC</span>
+    </div>
+
+    <div class="sensor-grid">
+        <div class="s-box">
+            <span class="s-lbl">ТЕМПЕРАТУРА</span>
+            <span id="t-val" class="s-val">--°</span>
+        </div>
+        <div class="s-box">
+            <span class="s-lbl">ВЛАЖНОСТ</span>
+            <span id="h-val" class="s-val">--%</span>
+        </div>
+    </div>
+
+    <div class="relay-card">
+        <div class="relay-info">
+            <span class="relay-name">ИЗХОД 1</span>
+            <span id="st0" class="status-pill">ИЗКЛЮЧЕНО</span>
+        </div>
+        <div class="btn-group">
+            <button class="btn-on" onclick="control(0, 'on')">ВКЛ</button>
+            <button class="btn-off" onclick="control(0, 'off')">ИЗКЛ</button>
+        </div>
+    </div>
+
+    <div class="relay-card">
+        <div class="relay-info">
+            <span class="relay-name">ИЗХОД 2</span>
+            <span id="st1" class="status-pill">ИЗКЛЮЧЕНО</span>
+        </div>
+        <div class="btn-group">
+            <button class="btn-on" onclick="control(1, 'on')">ВКЛ</button>
+            <button class="btn-off" onclick="control(1, 'off')">ИЗКЛ</button>
+        </div>
+    </div>
+
+    <div id="refresh-bar">Синхронизиране...</div>
+</div>
+
+<script>
+    const AUTH = "MTM5ZmUzdWlkC1587798E979A3C8B9963970829CC0D875A25348282C0C3F21246526BF680EDFD156C4643BD36F4C";
+    const ID = "cc7b5c0a1f7c";
+    const CLOUD = "https://shelly-50-eu.shelly.cloud";
+
+    async function fetchData() {
+        try {
+            const response = await fetch(`${CLOUD}/device/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `id=${ID}&auth_key=${AUTH}`
+            });
+            const res = await response.json();
+            if (res.isok) {
+                const s = res.data.device_status;
+
+                // Напрежение
+                if(s['voltmeter:100']) document.getElementById('v-val').innerText = s['voltmeter:100'].voltage.toFixed(1);
+
+                // Сензори
+                for (let k in s) {
+                    if (k.startsWith('temperature:')) document.getElementById('t-val').innerText = s[k].tC.toFixed(1) + "°";
+                    if (k.startsWith('humidity:')) document.getElementById('h-val').innerText = Math.round(s[k].rh) + "%";
+                }
+
+                // Статус
+                updateUI(0, s['switch:0'].output);
+                updateUI(1, s['switch:1'].output);
+
+                document.getElementById('refresh-bar').innerText = "Последно: " + new Date().toLocaleTimeString();
+            }
+        } catch (e) { document.getElementById('refresh-bar').innerText = "Грешка при връзката!"; }
+    }
+
+    function updateUI(ch, isOn) {
+        const el = document.getElementById(`st${ch}`);
+        el.innerText = isOn ? "АКТИВЕН" : "ИЗКЛЮЧЕН";
+        isOn ? el.classList.add('active') : el.classList.remove('active');
+    }
+
+    async function control(ch, turn) {
+        document.getElementById('refresh-bar').innerText = "Изпращане...";
+        await fetch(`${CLOUD}/device/relay/control/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `id=${ID}&auth_key=${AUTH}&channel=${ch}&turn=${turn}`
+        });
+        setTimeout(fetchData, 800);
+    }
+
+    // Автоматично обновяване
+    fetchData();
+    setInterval(fetchData, 10000);
+</script>
+
+</body>
+</html>
