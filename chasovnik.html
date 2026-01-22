@@ -16,9 +16,9 @@
             margin: 0;
             padding: 0;
             /* ГАРАНТИРА, че няма да има скрол */
-            height: 100vh; 
+            height: 100vh;
             width: 100vw;
-            overflow: hidden; 
+            overflow: hidden;
         }
 
         .container {
@@ -34,9 +34,9 @@
         }
 
         /* ИЗПОЛЗВАМ 'vmin' - това прави размера перфектен и за портрет, и за пейзаж */
-        
+
         select {
-            font-size: 5vmin; 
+            font-size: 5vmin;
             padding: 1vmin 4vmin;
             border-radius: 50px;
             border: 1px solid rgba(255,255,255,0.3);
@@ -53,7 +53,7 @@
             font-size: 24vmin; /* ОГРОМЕН ЧАСОВНИК, но съобразен с екрана */
             font-weight: 700;
             line-height: 0.9;
-            font-variant-numeric: tabular-nums; 
+            font-variant-numeric: tabular-nums;
             margin: 0; /* Махаме старите отстояния, Flexbox ще ги нагласи */
         }
 
@@ -89,7 +89,7 @@
             font-size: 6vmin;
             font-weight: bold;
         }
-        
+
         .detail-label {
             font-size: 3vmin;
             opacity: 0.7;
@@ -114,7 +114,7 @@
         </select>
 
         <div class="clock" id="clock">00:00</div>
-        
+
         <div class="date" id="date">...</div>
 
         <div class="temp-box" id="main-temp">--°</div>
@@ -132,8 +132,8 @@
     </div>
 
     <script>
-        let timeOffset = 0; 
-        
+        let timeOffset = 0;
+
         const cities = {
             sofia: { lat: 42.6977, lon: 23.3219 },
             plovdiv: { lat: 42.1354, lon: 24.7453 },
@@ -159,15 +159,15 @@
         // Часовник (махаме секундите, за да е по-едро и чисто, ако искате секунди - кажете)
         function updateClock() {
             const now = new Date(new Date().getTime() + timeOffset);
-            
+
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0'); // Добавям секунди
-            
-            // Ако екранът е много тесен, секундите може да паднат на нов ред. 
+
+            // Ако екранът е много тесен, секундите може да паднат на нов ред.
             // Затова тук ги оставям, но CSS-ът ще се погрижи да се съберат.
             document.getElementById('clock').innerText = `${hours}:${minutes}:${seconds}`;
-            
+
             const options = { weekday: 'long', day: 'numeric', month: 'short' };
             document.getElementById('date').innerText = now.toLocaleDateString('bg-BG', options);
         }
@@ -177,7 +177,7 @@
                 const selectedCity = document.getElementById('city-select').value;
                 const coords = cities[selectedCity];
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`;
-                
+
                 const response = await fetch(url);
                 const data = await response.json();
                 const current = data.current;
@@ -191,10 +191,10 @@
             }
         }
 
-        smartSync(); 
-        setInterval(smartSync, 600000); 
-        setInterval(updateClock, 1000); 
-        updateClock(); 
+        smartSync();
+        setInterval(smartSync, 600000);
+        setInterval(updateClock, 1000);
+        updateClock();
         getWeather();
         setInterval(getWeather, 600000);
     </script>
