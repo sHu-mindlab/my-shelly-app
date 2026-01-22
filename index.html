@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shelly App</title>
+
+    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIlNoZWxseSBDb250cm9sIiwKICAic2hvcnRfbmFtZSI6ICJTaGVsbHkiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBmMTcyYSIsCiAgInRoZW1lX2NvbG9yIjogIzBmMTcyYSIKfQ==">
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --on: #22c55e; --danger: #ef4444; --text: #f8fafc; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .app-shell { width: 100%; max-width: 400px; }
+        .voltage-card { background: #1e293b; padding: 30px; border-radius: 28px; text-align: center; margin-bottom: 20px; border: 1px solid #334155; }
+        .v-val { font-size: 3.5rem; font-weight: 800; display: block; }
+        .relay-card { background: #1e293b; padding: 20px; border-radius: 24px; margin-bottom: 15px; border: 1px solid #334155; }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        button { border: none; padding: 18px; border-radius: 16px; font-weight: bold; color: white; cursor: pointer; }
+        .btn-on { background: var(--on); }
+        .btn-off { background: var(--danger); }
+        .status { font-size: 0.7rem; font-weight: bold; padding: 4px 10px; border-radius: 10px; background: #0f172a; }
+        .active { color: var(--on); }
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+    <div class="voltage-card">
+        <span id="v-val" class="v-val">--.-</span>
+        <span style="color:var(--accent); font-weight:bold">VOLTS DC</span>
+    </div>
+
+    <div id="controls"></div>
+</div>
+
+<script>
+    const AUTH = "MTM5ZmUzdWlkC1587798E979A3C8B9963970829CC0D875A25348282C0C3F21246526BF680EDFD156C4643BD36F4C";
+    const ID = "cc7b5c0a1f7c";
+    const CLOUD = "https://shelly-50-eu.shelly.cloud";
+
+    // Генериране на бутони
+    const container = document.getElementById('controls');
+    [0, 1].forEach(ch => {
+        container.innerHTML += `
+            <div class="relay-card">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px">
+                    <b style="font-size:0.9rem">ИЗХОД ${ch+1}</b>
+                    <span id="st${ch}" class="status">ИЗКЛЮЧЕН</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-on" onclick="control(${ch}, 'on')">ВКЛ</button>
+                    <button class="btn-off" onclick="control(${ch}, 'off')">ИЗКЛ</button>
+                </div>
+            </div>`;
+    });
+
+    async function update() {
+        try {
+            const r = await fetch(`${CLOUD}/device/status?id=${ID}&auth_key=${AUTH}`, {method:'POST'});
+            const res = await r.json();
+            if (res.isok) {
+                const s = res.data.device_status;
+                if(s['voltmeter:100']) document.getElementById('v-val').innerText = s['voltmeter:100'].voltage.toFixed(1);
+                [0, 1].forEach(ch => {
+                    const isOn = s[`switch:${ch}`].output;
+                    const st = document.getElementById(`st${ch}`);
+                    st.innerText = isOn ? "АКТИВЕН" : "ИЗКЛЮЧЕН";
+                    isOn ? st.classList.add('active') : st.classList.remove('active');
+                });
+            }
+        } catch (e) {}
+    }
+
+    async function control(ch, turn) {
+        await fetch(`${CLOUD}/device/relay/control/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `id=${ID}&auth_key=${AUTH}&channel=${ch}&turn=${turn}`
+        });
+        setTimeout(update, 800);
+    }
+
+    setInterval(update, 10000);
+    update();
+</script>
+
+</body>
+</html>
