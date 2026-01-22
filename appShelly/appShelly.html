@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="bg">
 <head>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <meta name="theme-color" content="#00aaff">
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Shelly Control</title>
@@ -176,6 +179,11 @@
     // Автоматично обновяване
     fetchData();
     setInterval(fetchData, 10000);
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js");
+}
 </script>
 
 </body>
