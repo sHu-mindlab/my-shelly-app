@@ -603,6 +603,52 @@
             display: block;
         }
 
+        .map-wrapper.map-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-height: none !important;
+            z-index: 2000 !important;
+            border-radius: 0 !important;
+            border: none !important;
+        }
+
+        .map-close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            font-size: 1.8rem;
+            line-height: 1;
+            font-weight: 300;
+            cursor: pointer;
+            z-index: 2001;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            transition: all 0.2s;
+        }
+
+        .map-wrapper.map-fullscreen .map-close-btn {
+            display: flex;
+        }
+
+        .map-close-btn:hover {
+            background: rgba(244, 63, 94, 0.9);
+            border-color: rgba(244, 63, 94, 0.4);
+            transform: scale(1.05);
+        }
+
         #map {
             width: 100%;
             height: 100%;
@@ -1052,7 +1098,7 @@
             <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
                 <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
                     <div class="setting-label">
-                        <span>Ограничение на скоростта</span>
+                        <span>Ограничение на скоростта <span id="osm-limit-badge" style="display: none; font-size: 0.65rem; background: rgba(6, 182, 212, 0.2); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 1px 5px; border-radius: 4px; font-weight: 700; margin-left: 6px; vertical-align: middle;">OSM</span></span>
                         <span class="setting-desc">Предупреждение при превишаване</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -1099,6 +1145,7 @@
             
             <div class="map-wrapper" id="map-wrapper">
                 <div id="map"></div>
+                <button class="map-close-btn" id="btn-map-close" title="Затвори цял екран">×</button>
                 <div class="offline-map-overlay" id="map-offline-overlay">
                     <div class="offline-map-icon">📡</div>
                     <h4 style="margin-bottom: 4px;">Картата е офлайн</h4>
@@ -1170,7 +1217,9 @@
             mapPath: null,
             mapMarker: null,
             pathCoordinates: [],
-            audioContext: null
+            audioContext: null,
+            isManualLimitOverride: false,
+            lastMatchedRoadId: null
         };
 
         // OSM Overpass data caching
@@ -1357,8 +1406,14 @@
 
         limitSlider.addEventListener('input', (e) => {
             appState.speedLimit = parseInt(e.target.value);
+            appState.isManualLimitOverride = true; // User manually set the limit
             localStorage.setItem('speedometer_limit_val', appState.speedLimit);
             limitValEl.innerText = `${appState.speedLimit} ${appState.unit === 'kmh' ? 'км/ч' : 'mph'}`;
+            
+            const osmLimitBadge = document.getElementById('osm-limit-badge');
+            if (osmLimitBadge) {
+                osmLimitBadge.style.display = 'none';
+            }
         });
 
         // Event listener for Alarm Audio Mute
@@ -1442,8 +1497,39 @@
                 }, 200);
             } else {
                 mapWrapper.classList.remove('visible');
+                mapWrapper.classList.remove('map-fullscreen'); // Exit fullscreen
                 btnMapToggle.querySelector('span').innerText = 'Покажи Карта';
             }
+        });
+
+        // Click on map to open fullscreen
+        const mapDiv = document.getElementById('map');
+        mapDiv.addEventListener('click', (e) => {
+            if (!appState.mapVisible) return;
+            
+            // Open fullscreen map on clicking tiles/map container
+            if (e.target.classList.contains('leaflet-container') || e.target.closest('.leaflet-tile-container') || e.target.id === 'map') {
+                if (!mapWrapper.classList.contains('map-fullscreen')) {
+                    mapWrapper.classList.add('map-fullscreen');
+                    setTimeout(() => {
+                        if (appState.map) {
+                            appState.map.invalidateSize();
+                        }
+                    }, 300);
+                }
+            }
+        });
+
+        // Close map fullscreen mode
+        const btnMapClose = document.getElementById('btn-map-close');
+        btnMapClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            mapWrapper.classList.remove('map-fullscreen');
+            setTimeout(() => {
+                if (appState.map) {
+                    appState.map.invalidateSize();
+                }
+            }, 300);
         });
 
         // --- INTERACTION SOUNDS ---
@@ -1693,10 +1779,62 @@
             }
         }
 
-        // Wrong Way Detection Logic
+        // Retrieve road speed limit helper
+        function getRoadSpeedLimit(road) {
+            const tags = road.tags || {};
+            if (tags.maxspeed) {
+                let parsedLimit = parseInt(tags.maxspeed);
+                if (!isNaN(parsedLimit) && parsedLimit > 0) {
+                    if (tags.maxspeed.includes('mph')) {
+                        let mphVal = parseInt(tags.maxspeed);
+                        if (appState.unit === 'mph') {
+                            return mphVal;
+                        } else {
+                            return Math.round(mphVal * 1.60934);
+                        }
+                    } else {
+                        let kmhVal = parseInt(tags.maxspeed);
+                        if (appState.unit === 'mph') {
+                            return Math.round(kmhVal * 0.621371);
+                        } else {
+                            return kmhVal;
+                        }
+                    }
+                }
+            }
+            
+            // Heuristic fallbacks based on highway classification
+            const highway = tags.highway;
+            let defaultKmh = null;
+            
+            if (highway === 'motorway') {
+                defaultKmh = 140;
+            } else if (highway === 'trunk') {
+                defaultKmh = 120;
+            } else if (['primary', 'secondary', 'tertiary'].includes(highway)) {
+                defaultKmh = 90;
+            } else if (['residential', 'living_street', 'service', 'unclassified'].includes(highway)) {
+                defaultKmh = highway === 'living_street' ? 20 : 50;
+            }
+
+            if (defaultKmh !== null) {
+                if (appState.unit === 'mph') {
+                    return Math.round(defaultKmh * 0.621371);
+                }
+                return defaultKmh;
+            }
+            
+            return null;
+        }
+
+        // Wrong Way Detection & Speed Limit Tracking Logic
         function checkWrongWay(currentLat, currentLon, prevLat, prevLon) {
             if (osmCache.roads.length === 0) {
                 setWrongWayAlert(false);
+                const osmLimitBadge = document.getElementById('osm-limit-badge');
+                if (osmLimitBadge) {
+                    osmLimitBadge.style.display = 'none';
+                }
                 return;
             }
 
@@ -1725,6 +1863,27 @@
 
             // Threshold: must be within 30 meters of a road segment
             if (closestRoad && minDistance < 30) {
+                // Update speed limit from OSM if not manually overridden by user on this road
+                if (closestRoad.id !== appState.lastMatchedRoadId) {
+                    appState.lastMatchedRoadId = closestRoad.id;
+                    appState.isManualLimitOverride = false; // Reset manual override for new road
+                }
+
+                if (!appState.isManualLimitOverride) {
+                    let osmLimit = getRoadSpeedLimit(closestRoad);
+                    if (osmLimit !== null) {
+                        appState.speedLimit = osmLimit;
+                        localStorage.setItem('speedometer_limit_val', appState.speedLimit);
+                        limitSlider.value = appState.speedLimit;
+                        limitValEl.innerText = `${appState.speedLimit} ${appState.unit === 'kmh' ? 'км/ч' : 'mph'}`;
+                        
+                        const osmLimitBadge = document.getElementById('osm-limit-badge');
+                        if (osmLimitBadge) {
+                            osmLimitBadge.style.display = 'inline-block';
+                        }
+                    }
+                }
+
                 const tags = closestRoad.tags || {};
                 const isOneway = tags.oneway === 'yes' || tags.oneway === '1' || tags.oneway === '-1' || tags.junction === 'roundabout';
                 
@@ -1747,6 +1906,12 @@
                         setWrongWayAlert(true, tags.name || 'еднопосочна улица');
                         return;
                     }
+                }
+            } else if (minDistance >= 40) {
+                // If we are far away from any road, hide the OSM badge
+                const osmLimitBadge = document.getElementById('osm-limit-badge');
+                if (osmLimitBadge) {
+                    osmLimitBadge.style.display = 'none';
                 }
             }
 
@@ -1955,7 +2120,8 @@
                     tags: {
                         name: "ул. Иван Вазов (Тест еднопосочна)",
                         oneway: "yes",
-                        highway: "residential"
+                        highway: "residential",
+                        maxspeed: "50"
                     },
                     geometry: [
                         { lat: 42.6908, lon: 23.3280 },
