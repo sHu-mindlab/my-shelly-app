@@ -16,7 +16,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Leaflet CSS for Map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -35,7 +35,7 @@
             --text-light: #f1f5f9;
             --text-muted: #94a3b8;
             --font-main: 'Outfit', sans-serif;
-            --font-digital: 'Orbitron', monospace;
+            --font-digital: 'Inter', sans-serif;
         }
 
         * {
@@ -783,6 +783,60 @@
             margin-top: 0;
             letter-spacing: 4px;
         }
+
+        /* Normal state: hide HUD odometers */
+        .hud-odometers-row {
+            display: none;
+            gap: 6vw;
+            gap: 5vmin;
+            margin-top: 4vh;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* HUD mode state: show HUD odometers */
+        body.hud-mode .hud-odometers-row {
+            display: flex;
+        }
+
+        .hud-odo-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hud-odo-label {
+            font-size: 3vw !important;
+            font-size: 2.2vmin !important;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .hud-odo-val {
+            font-family: var(--font-digital);
+            font-size: 6vw !important;
+            font-size: 4.8vmin !important;
+            font-weight: 900;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 15px var(--accent-cyan-glow);
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        /* Color alerts for HUD odometers */
+        body.hud-mode.speed-alert .hud-odo-val {
+            color: #ff3b5c !important;
+            text-shadow: 0 0 25px rgba(255, 59, 92, 0.8) !important;
+        }
+
+        body.hud-mode.wrong-way-alert .hud-odo-val {
+            color: #ff3b5c !important;
+            text-shadow: 0 0 25px rgba(255, 59, 92, 0.8) !important;
+        }
     </style>
 </head>
 <body>
@@ -832,9 +886,21 @@
                 </svg>
                 
                 <!-- Digital Readout inside gauge -->
-                <div class="speed-display">
+                 <div class="speed-display">
                     <span class="speed-value" id="speed-val">0</span>
                     <span class="speed-unit" id="unit-val">км/ч</span>
+                    
+                    <!-- HUD Odometers Row -->
+                    <div class="hud-odometers-row">
+                        <div class="hud-odo-item">
+                            <span class="hud-odo-label">ДНЕВЕН</span>
+                            <span class="hud-odo-val" id="hud-odo-trip">0.00 км</span>
+                        </div>
+                        <div class="hud-odo-item">
+                            <span class="hud-odo-label">ОБЩ</span>
+                            <span class="hud-odo-val" id="hud-odo-total">0.0 км</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1070,6 +1136,8 @@
         const statAccuracyEl = document.getElementById('stat-accuracy');
         const odometerTripEl = document.getElementById('odometer-trip');
         const odometerTotalEl = document.getElementById('odometer-total');
+        const hudOdoTripEl = document.getElementById('hud-odo-trip');
+        const hudOdoTotalEl = document.getElementById('hud-odo-total');
         
         const btnResetTrip = document.getElementById('btn-reset-trip');
         const btnResetTotal = document.getElementById('btn-reset-total');
@@ -2017,14 +2085,18 @@
             statAvgEl.innerText = Math.round(avgSpeed);
 
             // Odometers display
-            odometerTripEl.innerText = formatDistance(appState.tripDistance, true);
+            let tripDistStr = formatDistance(appState.tripDistance, true);
+            odometerTripEl.innerText = tripDistStr;
+            hudOdoTripEl.innerText = tripDistStr;
             
             // Total odometer display
             let totalDistKm = metersToKm(appState.totalDistance);
             if (appState.unit === 'mph') {
                 totalDistKm = totalDistKm * 0.621371;
             }
-            odometerTotalEl.innerText = `${totalDistKm.toFixed(1)} ${appState.unit === 'kmh' ? 'км' : 'mi'}`;
+            let totalDistStr = `${totalDistKm.toFixed(1)} ${appState.unit === 'kmh' ? 'км' : 'mi'}`;
+            odometerTotalEl.innerText = totalDistStr;
+            hudOdoTotalEl.innerText = totalDistStr;
 
             // Gauge progress ring math
             let maxDialSpeed = appState.unit === 'kmh' ? 180 : 110;
