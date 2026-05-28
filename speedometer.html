@@ -692,6 +692,97 @@
         .hidden {
             display: none !important;
         }
+
+        /* HUD MODE CSS STYLES */
+        body.hud-mode {
+            background-color: #000000 !important;
+            background-image: none !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        body.hud-mode .container {
+            max-width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* Hide everything except the speedometer box */
+        body.hud-mode .container > *:not(.speedometer-box) {
+            display: none !important;
+        }
+
+        /* Speedometer Box in HUD mode */
+        body.hud-mode .speedometer-box {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        body.hud-mode .gauge-container {
+            width: 90vw !important;
+            height: 90vh !important;
+            max-width: 800px;
+            max-height: 800px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Hide the circular progress ring */
+        body.hud-mode .gauge-svg {
+            display: none !important;
+        }
+
+        /* Hide stats under the speedometer box */
+        body.hud-mode .stats-grid {
+            display: none !important;
+        }
+
+        /* Scale speed text inside HUD mode */
+        body.hud-mode .speed-value {
+            font-size: 55vw !important; /* Huge text responsive to width */
+            font-size: 50vmin !important; /* Cap it for landscape aspect ratio */
+            transition: color 0.2s, text-shadow 0.2s;
+            color: var(--text-light); /* White in normal HUD mode */
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+
+        body.hud-mode.speed-alert .speed-value {
+            color: #ff3b5c !important; /* Light bright red digits */
+            text-shadow: 0 0 40px rgba(255, 59, 92, 0.8) !important;
+        }
+
+        body.hud-mode.wrong-way-alert .speed-value {
+            color: #ff3b5c !important; /* Light bright red digits */
+            text-shadow: 0 0 40px rgba(255, 59, 92, 0.8) !important;
+        }
+
+        body.hud-mode .speed-unit {
+            font-size: 5vw !important;
+            font-size: 4vmin !important;
+            margin-top: 0;
+            letter-spacing: 4px;
+        }
     </style>
 </head>
 <body>
@@ -1949,6 +2040,19 @@
 
         // Start GPS
         startTracking();
+
+        // Toggle HUD Mode on click of the speedometer box
+        const speedometerBox = document.querySelector('.speedometer-box');
+        speedometerBox.addEventListener('click', () => {
+            document.body.classList.toggle('hud-mode');
+            
+            // Adjust Leaflet map sizing to prevent rendering issues after exiting HUD
+            if (appState.map) {
+                setTimeout(() => {
+                    appState.map.invalidateSize();
+                }, 300);
+            }
+        });
 
         // --- PWA SERVICE WORKER REGISTRATION ---
         if ('serviceWorker' in navigator) {
