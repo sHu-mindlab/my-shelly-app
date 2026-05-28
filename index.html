@@ -2,97 +2,597 @@
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shelly Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIlNoZWxseSBDb250cm9sIiwKICAic2hvcnRfbmFtZSI6ICJTaGVsbHkiLAogICJzdGFydF91cmwiOiAiLi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIzBmMTcyYSIsCiAgInRoZW1lX2NvbG9yIjogIzBmMTcyYSIsCiAgImljb25zIjogW3sKICAgICJzcmMiOiAiaHR0cHM6Ly9jZG4taWNvbnMtcG5nLmZsYXRpY29uLmNvbS81MTIvNDY2LzQ2NjE3Ni5wbmciLAogICAgInNpemVzIjogIjUxMng1MTIiLAogICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogIH1dCn0=">
+    <!-- Primary Meta Tags -->
+    <title>shukov.eu | Дигитални Иновации & Смарт Системи</title>
+    <meta name="title" content="shukov.eu | Дигитални Иновации & Смарт Системи">
+    <meta name="description" content="Личен технологичен портал и портфолио на Христо Шуков. Разгледайте проекти в сферата на умен дом (IoT), автоматизация на Shelly устройства, уеб приложения и софтуерни разработки.">
     
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#0f172a">
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://shukov.eu/">
+    <meta property="og:title" content="shukov.eu | Дигитални Иновации & Смарт Системи">
+    <meta property="og:description" content="Портфолио на Христо Шуков с фокус върху IoT (Shelly), смарт часовници и съвременни уеб технологии.">
+    <meta property="og:image" content="https://shukov.eu/appShelly/icon-512.png">
 
-    <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --on: #22c55e; --danger: #ef4444; --text: #f8fafc; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .app-shell { width: 100%; max-width: 400px; }
-        .voltage-card { background: #1e293b; padding: 25px; border-radius: 28px; text-align: center; margin-bottom: 20px; border: 1px solid #334155; }
-        .v-val { font-size: 3rem; font-weight: 800; display: block; color: #fff; }
-        .relay-card { background: #1e293b; padding: 20px; border-radius: 20px; margin-bottom: 15px; border: 1px solid #334155; }
-        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        button { border: none; padding: 16px; border-radius: 12px; font-weight: bold; color: white; cursor: pointer; font-size: 0.8rem; }
-        .btn-on { background: var(--on); }
-        .btn-off { background: var(--danger); }
-        .status { font-size: 0.7rem; color: #94a3b8; }
-        .active-text { color: var(--on); }
-    </style>
+    <!-- CSS stylesheet -->
+    <link rel="stylesheet" href="index.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/466/466176.png">
 </head>
 <body>
 
-<div class="app-shell">
-    <div class="voltage-card">
-        <span id="v-val" class="v-val">--.-</span>
-        <span style="color:var(--accent); font-size: 0.8rem; font-weight:bold">VOLTS DC</span>
-    </div>
-    <div id="controls"></div>
-    <div id="log" style="text-align:center; font-size:0.6rem; color:#444; margin-top:10px;"></div>
-</div>
+    <!-- Canvas Background -->
+    <canvas id="bg-canvas"></canvas>
 
-<script>
-    // Регистрация на Service Worker за PWA
-    if ('serviceWorker' in navigator) {
-        const sw = 'data:application/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdmZXRjaCcsIGV2ZW50ID0+IHsgZXZlbnQucmVzcG9uZFdpdGgoZmV0Y2goZXZlbnQucmVxdWVzdCkpOyB9KTs=';
-        navigator.serviceWorker.register(`data:application/javascript;base64,${btoa("self.addEventListener('fetch', (e) => { e.respondWith(fetch(e.request)); });")}`);
-    }
+    <!-- Header Navigation -->
+    <header id="main-header">
+        <div class="container nav-wrapper">
+            <a href="#home" class="logo" id="logo-link">
+                <span>⚡</span> shukov.eu
+            </a>
+            <ul class="nav-links" id="nav-menu">
+                <li><a href="#home" class="nav-link active">Начало</a></li>
+                <li><a href="#about" class="nav-link">За мен</a></li>
+                <li><a href="#projects" class="nav-link">Проекти</a></li>
+                <li><a href="#contact" class="nav-link">Контакти</a></li>
+            </ul>
+            <button class="mobile-menu-btn" id="mobile-toggle" aria-label="Меню">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="4" y1="12" x2="20" y2="12"></line>
+                    <line x1="4" y1="6" x2="20" y2="6"></line>
+                    <line x1="4" y1="18" x2="20" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    </header>
 
-    const AUTH = "MTM5ZmUzdWlkC1587798E979A3C8B9963970829CC0D875A25348282C0C3F21246526BF680EDFD156C4643BD36F4C";
-    const ID = "cc7b5c0a1f7c";
-    const CLOUD = "https://shelly-50-eu.shelly.cloud";
-
-    const container = document.getElementById('controls');
-    [0, 1].forEach(ch => {
-        container.innerHTML += `
-            <div class="relay-card">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px">
-                    <b>ИЗХОД ${ch+1}</b>
-                    <span id="st${ch}" class="status">ИЗКЛЮЧЕН</span>
+    <!-- Main Content -->
+    <main>
+        
+        <!-- Hero Section -->
+        <section id="home" class="hero">
+            <div class="container hero-content">
+                <div class="hero-badge">
+                    <span></span> Системите са онлайн
                 </div>
+                <h1><span class="gradient-text">Технологично пространство</span><br>за умни решения</h1>
+                <p>Проектиране, разработка и интеграция на интелигентни IoT решения, смарт автоматизация и модерни уеб интерфейси.</p>
                 <div class="btn-group">
-                    <button class="btn-on" onclick="control(${ch}, 'on')">ВКЛ</button>
-                    <button class="btn-off" onclick="control(${ch}, 'off')">ИЗКЛ</button>
+                    <a href="#projects" class="btn btn-primary" id="btn-hero-projects">
+                        Разгледай проектите
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </a>
+                    <a href="#contact" class="btn btn-secondary" id="btn-hero-contact">Свържи се с мен</a>
                 </div>
-            </div>`;
-    });
+            </div>
+        </section>
 
-    async function update() {
-        try {
-            const r = await fetch(`${CLOUD}/device/status?id=${ID}&auth_key=${AUTH}`, {method:'POST'});
-            const res = await r.json();
-            if (res.isok) {
-                const s = res.data.device_status;
-                if(s['voltmeter:100']) document.getElementById('v-val').innerText = s['voltmeter:100'].voltage.toFixed(1);
-                [0, 1].forEach(ch => {
-                    const isOn = s[`switch:${ch}`].output;
-                    const st = document.getElementById(`st${ch}`);
-                    st.innerText = isOn ? "АКТИВЕН" : "ИЗКЛЮЧЕН";
-                    isOn ? st.classList.add('active-text') : st.classList.remove('active-text');
-                });
-                document.getElementById('log').innerText = "Последно: " + new Date().toLocaleTimeString();
-            }
-        } catch (e) {}
-    }
+        <!-- About Section -->
+        <section id="about" class="reveal">
+            <div class="container">
+                <div class="section-header">
+                    <h2>За мен</h2>
+                    <p>Аз съм технологичен ентусиаст и разработчик с фокус върху автоматизацията на дома (Smart Home), оптимизацията на системи и създаването на практични уеб инструменти.</p>
+                </div>
+                
+                <div class="about-grid">
+                    <div class="about-text">
+                        <h3>Технологична визия</h3>
+                        <p>Вярвам, че технологиите трябва да правят живота ни по-лесен, по-ефективен и по-свързан. Моята страст е изграждането на IoT екосистеми, които работят безпроблемно на заден план.</p>
+                        <p>Специализирам в интегрирането на безжични контролери (като Shelly и ESP устройства) с интелигентни облачни платформи, както и в разработката на бързи, оптимизирани и лесни за използване клиентски интерфейси.</p>
+                        <div style="margin-top: 32px;">
+                            <a href="#contact" class="btn btn-primary" id="btn-about-hire">Започване на проект</a>
+                        </div>
+                    </div>
+                    
+                    <div class="skills-container">
+                        <!-- Skill 1 -->
+                        <div class="skill-card glass-panel">
+                            <div class="skill-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                                </svg>
+                            </div>
+                            <div class="skill-info">
+                                <h4>IoT & Смарт Автоматизация</h4>
+                                <p>Управление и мониторинг на интелигентни релета, датчици, Shelly Cloud API, ESP Home и автоматизирани скриптове.</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Skill 2 -->
+                        <div class="skill-card glass-panel">
+                            <div class="skill-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="12 2 2 7 12 12 22 7 12 2 12 2"></polygon>
+                                    <polyline points="2 17 12 22 22 17"></polyline>
+                                    <polyline points="2 12 12 17 22 12"></polyline>
+                                </svg>
+                            </div>
+                            <div class="skill-info">
+                                <h4>Frontend Разработка</h4>
+                                <p>Създаване на бързи и адаптивни уебсайтове с чист HTML5, съвременен CSS3 и интерактивен Vanilla JavaScript.</p>
+                            </div>
+                        </div>
 
-    async function control(ch, turn) {
-        fetch(`${CLOUD}/device/relay/control/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `id=${ID}&auth_key=${AUTH}&channel=${ch}&turn=${turn}`
+                        <!-- Skill 3 -->
+                        <div class="skill-card glass-panel">
+                            <div class="skill-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                                    <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                                    <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                                </svg>
+                            </div>
+                            <div class="skill-info">
+                                <h4>API Интеграция & PWA</h4>
+                                <p>Работа с външни REST интерфейси (Open-Meteo, WorldTime) и имплементация на Progressive Web Apps (PWA) за офлайн режим.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Projects Section -->
+        <section id="projects" class="reveal">
+            <div class="container">
+                <div class="section-header">
+                    <h2>Проекти</h2>
+                    <p>Разгледайте селекция от разработени приложения и системи, обхващащи интелигентен контрол на устройства и полезни уеб инструменти.</p>
+                </div>
+
+                <!-- Filters -->
+                <div class="project-filters">
+                    <button class="filter-btn active" data-filter="all" id="filter-all">Всички</button>
+                    <button class="filter-btn" data-filter="iot" id="filter-iot">IoT & Смарт</button>
+                    <button class="filter-btn" data-filter="web" id="filter-web">Уеб Приложения</button>
+                </div>
+
+                <!-- Projects Grid -->
+                <div class="projects-grid">
+                    
+                    <!-- Project 1: Shelly PWA -->
+                    <article class="project-card glass-panel" data-category="iot" id="card-shelly">
+                        <div class="project-image">
+                            <div class="project-badge">IoT / PWA</div>
+                            <!-- Tech SVG graphic -->
+                            <svg width="120" height="120" viewBox="0 0 100 100" fill="none">
+                                <circle cx="50" cy="50" r="40" stroke="rgba(56, 189, 248, 0.2)" stroke-width="2"></circle>
+                                <circle cx="50" cy="50" r="30" stroke="#38bdf8" stroke-width="2" stroke-dasharray="10 5" class="spin-anim"></circle>
+                                <rect x="38" y="38" width="24" height="24" rx="6" fill="#1e293b" stroke="#38bdf8" stroke-width="2"></rect>
+                                <path d="M46 50H54M50 46V54" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"></path>
+                            </svg>
+                        </div>
+                        <div class="project-content">
+                            <h3>Smart Control (Shelly)</h3>
+                            <p>Уеб-базиран панел за безжичен контрол на Shelly релета в реално време. Показва данни от волтметър, сензори за температура и влажност. PWA оптимизиран.</p>
+                            <div class="project-tags">
+                                <span class="tag">Shelly API</span>
+                                <span class="tag">PWA</span>
+                                <span class="tag">HTML5/CSS3</span>
+                                <span class="tag">Vanilla JS</span>
+                            </div>
+                            <div class="project-links">
+                                <a href="appShelly/appShelly.html" class="btn btn-primary" id="link-shelly-run">Стартирай</a>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- Project 2: Smart Clock -->
+                    <article class="project-card glass-panel" data-category="web" id="card-clock">
+                        <div class="project-image">
+                            <div class="project-badge">Уеб Приложение</div>
+                            <!-- Tech SVG graphic -->
+                            <svg width="120" height="120" viewBox="0 0 100 100" fill="none">
+                                <circle cx="50" cy="50" r="40" stroke="rgba(16, 185, 129, 0.2)" stroke-width="2"></circle>
+                                <path d="M50 20V50L70 50" stroke="#10b981" stroke-width="3" stroke-linecap="round"></path>
+                                <path d="M25 35C20 45 22 58 30 66C38 74 52 76 62 70" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 4"></path>
+                                <circle cx="50" cy="50" r="3" fill="#10b981"></circle>
+                            </svg>
+                        </div>
+                        <div class="project-content">
+                            <h3>Смарт Часовник & Време</h3>
+                            <p>Интелигентен пълноекранен часовник с автоматична синхронизация на часовата зона. Интегриран с Open-Meteo прогноза за времето в България.</p>
+                            <div class="project-tags">
+                                <span class="tag">Open-Meteo API</span>
+                                <span class="tag">WorldTime API</span>
+                                <span class="tag">Responsive</span>
+                                <span class="tag">JS App</span>
+                            </div>
+                            <div class="project-links">
+                                <a href="chasovnik.html" class="btn btn-primary" id="link-clock-run">Стартирай</a>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- Project 3: shukov.eu -->
+                    <article class="project-card glass-panel" data-category="web" id="card-portfolio">
+                        <div class="project-image">
+                            <div class="project-badge">Портфолио</div>
+                            <!-- Tech SVG graphic -->
+                            <svg width="120" height="120" viewBox="0 0 100 100" fill="none">
+                                <rect x="25" y="25" width="50" height="50" rx="8" stroke="rgba(168, 85, 247, 0.2)" stroke-width="2"></rect>
+                                <path d="M35 45L45 50L35 55" stroke="#a855f7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                                <line x1="50" y1="58" x2="63" y2="58" stroke="#a855f7" stroke-width="3" stroke-linecap="round"></line>
+                                <circle cx="50" cy="50" r="40" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="4 8"></circle>
+                            </svg>
+                        </div>
+                        <div class="project-content">
+                            <h3>shukov.eu Личен Сайт</h3>
+                            <p>Настоящият уебсайт с висока производителност, реактивен Canvas фон, гласморфичен дизайн и филтри на проектите в реално време.</p>
+                            <div class="project-tags">
+                                <span class="tag">Responsive CSS</span>
+                                <span class="tag">HTML5 Canvas</span>
+                                <span class="tag">SEO Friendly</span>
+                                <span class="tag">Modern UI</span>
+                            </div>
+                            <div class="project-links">
+                                <a href="#home" class="btn btn-secondary" id="link-portfolio-active">Активен</a>
+                            </div>
+                        </div>
+                    </article>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact" class="reveal">
+            <div class="container">
+                <div class="section-header">
+                    <h2>Контакти</h2>
+                    <p>Имате въпроси или искате да си сътрудничим по проект за автоматизация? Изпратете съобщение или се свържете директно.</p>
+                </div>
+
+                <div class="contact-grid">
+                    <div class="contact-info">
+                        <h3>Свържете се директно</h3>
+                        <p>Отворен съм за обсъждане на нови идеи, IoT архитектури и смарт интеграции за вашия дом или бизнес.</p>
+                        
+                        <div class="contact-methods">
+                            <!-- Email -->
+                            <div class="contact-method">
+                                <div class="contact-method-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                        <polyline points="22,6 12,13 2,6"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="contact-method-text">
+                                    <h4>Имейл адрес</h4>
+                                    <p>hristo@shukov.eu</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Location -->
+                            <div class="contact-method">
+                                <div class="contact-method-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"></path>
+                                        <circle cx="12" cy="10" r="3"></circle>
+                                    </svg>
+                                </div>
+                                <div class="contact-method-text">
+                                    <h4>Локация</h4>
+                                    <p>България</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="social-links">
+                            <a href="https://github.com" target="_blank" class="social-btn" aria-label="GitHub" id="social-github">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                                </svg>
+                            </a>
+                            <a href="mailto:hristo@shukov.eu" class="social-btn" aria-label="Email" id="social-email">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="4" width="20" height="16" rx="2" fill="none"></rect>
+                                    <path d="M22 4L12 14.01L2 4"></path>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    <form class="contact-form glass-panel" id="contact-form-el">
+                        <div class="form-group">
+                            <label for="form-name">Име</label>
+                            <input type="text" id="form-name" class="form-control" placeholder="Вашето име" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="form-email">Имейл</label>
+                            <input type="email" id="form-email" class="form-control" placeholder="your@email.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="form-message">Съобщение</label>
+                            <textarea id="form-message" class="form-control" placeholder="Как мога да Ви помогна?" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; border: none;" id="btn-submit">
+                            Изпрати съобщение
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                        
+                        <div id="form-success" style="display: none; margin-top: 20px; padding: 15px; border-radius: 10px; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-emerald); color: var(--accent-emerald); font-size: 0.9rem; text-align: center;">
+                            Благодаря Ви! Съобщението беше изпратено успешно.
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 shukov.eu. Всички права запазени.</p>
+            <p class="tech-note">Изграден с чисти технологии: HTML5, CSS3, ES6 & Canvas</p>
+        </div>
+    </footer>
+
+    <!-- Interactive JavaScript -->
+    <script>
+        // 1. Mobile Menu Toggle
+        const mobileToggle = document.getElementById('mobile-toggle');
+        const navMenu = document.getElementById('nav-menu');
+        
+        mobileToggle.addEventListener('click', () => {
+            navMenu.classList.toggle('open');
+            // Toggle hamburger icon animation/state
+            mobileToggle.classList.toggle('active');
         });
-        setTimeout(update, 1000);
-    }
+        
+        // Close menu on link click
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                navMenu.classList.remove('open');
+                mobileToggle.classList.remove('active');
+            });
+        });
 
-    setInterval(update, 10000);
-    update();
-</script>
+        // 2. Active Link Highlighting on Scroll
+        const sections = document.querySelectorAll('section');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const header = document.getElementById('main-header');
 
+        window.addEventListener('scroll', () => {
+            // Header opacity change on scroll
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+
+            // Highlighting
+            let currentSection = "";
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (window.scrollY >= (sectionTop - 150)) {
+                    currentSection = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${currentSection}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // 3. Project Filter Logic
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        const projectCards = document.querySelectorAll('.project-card');
+
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Update active state for buttons
+                filterButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const filterValue = btn.getAttribute('data-filter');
+
+                // Filter cards
+                projectCards.forEach(card => {
+                    if (filterValue === 'all' || card.getAttribute('data-category') === filterValue) {
+                        card.classList.remove('hidden');
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+            });
+        });
+
+        // 4. Reveal on Scroll
+        const revealElements = document.querySelectorAll('.reveal');
+        
+        const revealOnScroll = () => {
+            revealElements.forEach(el => {
+                const elementTop = el.getBoundingClientRect().top;
+                const windowHeight = window.innerHeight;
+                
+                if (elementTop < windowHeight - 100) {
+                    el.classList.add('active');
+                }
+            });
+        };
+        
+        window.addEventListener('scroll', revealOnScroll);
+        // Run once on load
+        revealOnScroll();
+
+        // 5. Contact Form Mock Submit
+        const contactForm = document.getElementById('contact-form-el');
+        const formSuccess = document.getElementById('form-success');
+        
+        contactForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            formSuccess.style.display = 'block';
+            contactForm.reset();
+            
+            setTimeout(() => {
+                formSuccess.style.display = 'none';
+            }, 6000);
+        });
+
+        // 6. Interactive Canvas Particle Background
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let particlesArray = [];
+        let mouse = {
+            x: null,
+            y: null,
+            radius: 120
+        };
+
+        // Resize Canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Capture Mouse Movement
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+
+        window.addEventListener('mouseleave', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        // Particle Blueprint
+        class Particle {
+            constructor(x, y, directionX, directionY, size, color) {
+                this.x = x;
+                this.y = y;
+                this.directionX = directionX;
+                this.directionY = directionY;
+                this.size = size;
+                this.color = color;
+            }
+
+            // Draw particle
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+
+            // Update particle position and react to mouse
+            update() {
+                // Ensure particle stays on screen
+                if (this.x > canvas.width || this.x < 0) {
+                    this.directionX = -this.directionX;
+                }
+                if (this.y > canvas.height || this.y < 0) {
+                    this.directionY = -this.directionY;
+                }
+
+                // Check mouse collision
+                if (mouse.x !== null && mouse.y !== null) {
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < mouse.radius + this.size) {
+                        if (mouse.x < this.x && this.x < canvas.width - this.size * 10) {
+                            this.x += 2;
+                        }
+                        if (mouse.x > this.x && this.x > this.size * 10) {
+                            this.x -= 2;
+                        }
+                        if (mouse.y < this.y && this.y < canvas.height - this.size * 10) {
+                            this.y += 2;
+                        }
+                        if (mouse.y > this.y && this.y > this.size * 10) {
+                            this.y -= 2;
+                        }
+                    }
+                }
+
+                // Move particle
+                this.x += this.directionX;
+                this.y += this.directionY;
+                
+                // Draw particle
+                this.draw();
+            }
+        }
+
+        // Initialize particles
+        function initParticles() {
+            particlesArray = [];
+            let numberOfParticles = Math.min((canvas.width * canvas.height) / 9000, 100);
+            for (let i = 0; i < numberOfParticles; i++) {
+                let size = (Math.random() * 2) + 1;
+                let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
+                let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
+                let directionX = (Math.random() * 0.4) - 0.2;
+                let directionY = (Math.random() * 0.4) - 0.2;
+                let color = 'rgba(56, 189, 248, 0.4)'; // Cyan color with transparency
+
+                particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
+            }
+        }
+
+        // Connect particles with lines
+        function connectParticles() {
+            let opacityValue = 1;
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    let dx = particlesArray[a].x - particlesArray[b].x;
+                    let dy = particlesArray[a].y - particlesArray[b].y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 130) {
+                        opacityValue = 1 - (distance / 130);
+                        ctx.strokeStyle = `rgba(56, 189, 248, ${opacityValue * 0.15})`;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        // Animation Loop
+        function animate() {
+            ctx.clearRect(0, 0, innerWidth, innerHeight);
+            
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+            }
+            connectParticles();
+            requestAnimationFrame(animate);
+        }
+
+        initParticles();
+        animate();
+
+        // Handle particles array size on window resize
+        window.addEventListener('resize', () => {
+            initParticles();
+        });
+    </script>
 </body>
 </html>
