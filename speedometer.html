@@ -808,9 +808,8 @@
 
         /* Scale speed text inside HUD mode */
         body.hud-mode .speed-value {
-            font-size: 65vw !important; /* Extremely huge digits taking most width */
-            font-size: 65vmin !important; /* Cap by screen height */
-            line-height: 0.8 !important;
+            font-size: min(88vh, 78vw) !important; /* Scale to occupy ~90% of vertical height, capped by screen width */
+            line-height: 0.72 !important;
             transition: color 0.2s, text-shadow 0.2s;
             color: var(--text-light); /* White in normal HUD mode */
             text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
