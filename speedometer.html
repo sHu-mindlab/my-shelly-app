@@ -1,0 +1,1963 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GPS Скоростомер & Одометър</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="speedometer.webmanifest">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="speedometer-icon.svg">
+    <link rel="icon" type="image/svg+xml" href="speedometer-icon.svg">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --bg-card: rgba(17, 24, 39, 0.6);
+            --border-glow: rgba(6, 182, 212, 0.15);
+            --accent-cyan: #06b6d4;
+            --accent-cyan-glow: rgba(6, 182, 212, 0.4);
+            --accent-emerald: #10b981;
+            --accent-emerald-glow: rgba(16, 185, 129, 0.4);
+            --accent-rose: #f43f5e;
+            --accent-rose-glow: rgba(244, 63, 94, 0.5);
+            --text-light: #f1f5f9;
+            --text-muted: #94a3b8;
+            --font-main: 'Outfit', sans-serif;
+            --font-digital: 'Orbitron', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-light);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            transition: background-color 0.3s;
+        }
+
+        /* Danger state for speed limit warning */
+        body.speed-alert {
+            animation: red-flash 0.8s infinite alternate;
+        }
+
+        @keyframes red-flash {
+            0% { background-color: var(--bg-dark); }
+            100% { background-color: #270611; }
+        }
+
+        /* Emergency warning state for wrong way driving */
+        body.wrong-way-alert {
+            animation: wrong-way-flash 0.3s infinite alternate;
+        }
+
+        @keyframes wrong-way-flash {
+            0% { background-color: var(--bg-dark); }
+            100% { background-color: #5f071a; }
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding-bottom: 40px;
+        }
+
+        /* Header styling */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            gap: 10px;
+        }
+
+        .app-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 1rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--text-light) 30%, var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            white-space: nowrap;
+        }
+
+        .header-status-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .gps-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            white-space: nowrap;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+        }
+
+        .status-dot.connected {
+            background-color: var(--accent-emerald);
+            box-shadow: 0 0 8px var(--accent-emerald-glow);
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-dot.warning {
+            background-color: var(--accent-rose);
+            box-shadow: 0 0 8px var(--accent-rose-glow);
+            animation: pulse 0.5s infinite;
+        }
+
+        .status-dot.simulating {
+            background-color: #eab308;
+            box-shadow: 0 0 8px rgba(234, 179, 8, 0.5);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        /* Glass Panel */
+        .glass-panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* Wrong Way Banner style */
+        .wrong-way-banner {
+            display: none;
+            width: 100%;
+            text-align: center;
+            background: var(--accent-rose);
+            color: #fff;
+            padding: 14px 20px;
+            font-weight: 800;
+            font-size: 1.05rem;
+            border-radius: 16px;
+            box-shadow: 0 0 20px var(--accent-rose-glow);
+            animation: wrong-way-banner-flash 0.3s infinite alternate;
+            border: 1.5px solid #fff;
+        }
+
+        @keyframes wrong-way-banner-flash {
+            0% { background-color: var(--accent-rose); box-shadow: 0 0 10px var(--accent-rose-glow); }
+            100% { background-color: #990f2b; box-shadow: 0 0 25px rgba(244, 63, 94, 0.8); }
+        }
+
+        /* Main Speedometer */
+        .speedometer-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .gauge-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+        }
+
+        .gauge-svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        .gauge-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.03);
+            stroke-width: 14;
+        }
+
+        .gauge-progress {
+            fill: none;
+            stroke: url(#cyan-gradient);
+            stroke-width: 14;
+            stroke-linecap: round;
+            stroke-dasharray: 691; /* 2 * PI * r (r=110) = 691.15 */
+            stroke-dashoffset: 691;
+            transition: stroke-dashoffset 0.2s cubic-bezier(0.1, 0.8, 0.25, 1);
+            filter: drop-shadow(0px 0px 8px var(--accent-cyan-glow));
+        }
+
+        body.speed-alert .gauge-progress {
+            stroke: url(#rose-gradient);
+            filter: drop-shadow(0px 0px 12px var(--accent-rose-glow));
+        }
+
+        body.wrong-way-alert .gauge-progress {
+            stroke: url(#rose-gradient);
+            filter: drop-shadow(0px 0px 12px var(--accent-rose-glow));
+        }
+
+        .speed-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .speed-value {
+            font-family: var(--font-digital);
+            font-size: 4.8rem;
+            font-weight: 900;
+            line-height: 1;
+            color: var(--text-light);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .speed-unit {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        /* Odometer Panel */
+        .odometer-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .odometer-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            position: relative;
+        }
+
+        .odometer-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        /* LCD screen style for odometers */
+        .odometer-value-box {
+            background: #06090e;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8);
+            width: 100%;
+        }
+
+        .odometer-value {
+            font-family: var(--font-digital);
+            font-size: 1.4rem;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 5px var(--accent-cyan-glow);
+            letter-spacing: 1px;
+        }
+
+        .odometer-card.trip .odometer-value {
+            color: var(--accent-emerald);
+            text-shadow: 0 0 5px var(--accent-emerald-glow);
+        }
+
+        .reset-btn {
+            margin-top: 10px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--accent-emerald);
+            padding: 6px 14px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .reset-btn:hover {
+            background: var(--accent-emerald);
+            color: var(--bg-dark);
+            transform: translateY(-1px);
+        }
+
+        .edit-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+
+        .edit-btn:hover {
+            opacity: 1;
+            color: var(--accent-cyan);
+        }
+
+        /* Stats Section */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 10px 4px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+        }
+
+        .stat-value {
+            font-family: var(--font-digital);
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        /* Settings and Controls panel */
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .setting-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .setting-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Toggle Switches & Button Groups */
+        .btn-group {
+            display: flex;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 3px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-toggle {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px 14px;
+            border-radius: 9px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-toggle.active {
+            background: var(--accent-cyan);
+            color: var(--bg-dark);
+            box-shadow: 0 2px 8px var(--accent-cyan-glow);
+        }
+
+        /* Alert Sound Toggle Button */
+        .sound-toggle-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-light);
+            transition: all 0.2s;
+        }
+
+        .sound-toggle-btn.muted {
+            color: var(--accent-rose);
+            border-color: rgba(244, 63, 94, 0.2);
+            background: rgba(244, 63, 94, 0.05);
+        }
+
+        /* Speed Limit slider style */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            box-shadow: 0 0 8px var(--accent-cyan-glow);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider-val {
+            font-family: var(--font-digital);
+            font-size: 1rem;
+            color: var(--accent-cyan);
+            min-width: 36px;
+            text-align: right;
+        }
+
+        /* Map Section */
+        .map-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .map-toggle-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-light);
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .map-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .map-wrapper {
+            height: 240px;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            position: relative;
+            display: none;
+        }
+
+        .map-wrapper.visible {
+            display: block;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        .offline-map-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        .offline-map-overlay.active {
+            display: flex;
+        }
+
+        .offline-map-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .offline-map-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            max-width: 250px;
+        }
+
+        /* Simulation Panel */
+        .simulation-panel {
+            background: rgba(234, 179, 8, 0.03);
+            border: 1px dashed rgba(234, 179, 8, 0.2);
+            border-radius: 18px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .sim-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #eab308;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sim-btn {
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.25);
+            color: #eab308;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sim-btn:hover, .sim-btn.active {
+            background: #eab308;
+            color: var(--bg-dark);
+            box-shadow: 0 0 10px rgba(234, 179, 8, 0.3);
+        }
+
+        .sim-controls {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(234, 179, 8, 0.1);
+        }
+
+        .sim-controls.visible {
+            display: flex;
+        }
+
+        /* Warning markers for Leaflet map */
+        .pulse-marker-warning {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-rose);
+            border: 3px solid #fff;
+            box-shadow: 0 0 12px var(--accent-rose);
+            animation: marker-pulse 0.8s infinite;
+        }
+
+        @keyframes marker-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        /* Back to portfolio button */
+        .back-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: var(--text-light);
+        }
+
+        /* Hidden helper */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- Wrong Way Warning Banner -->
+        <div class="wrong-way-banner" id="wrong-way-banner">
+            ⚠️ НАСРЕЩНО ДВИЖЕНИЕ! ⚠️
+        </div>
+
+        <!-- Header -->
+        <header>
+            <div class="app-title">
+                <span>⚡</span> GPS Скоростомер
+            </div>
+            <div class="header-status-group">
+                <div class="gps-status" id="wrong-way-status-pill">
+                    <span class="status-dot" id="wrong-way-dot"></span>
+                    <span id="wrong-way-text">Насрещно: няма данни</span>
+                </div>
+                <div class="gps-status">
+                    <span class="status-dot" id="gps-dot"></span>
+                    <span id="gps-text">GPS Офлайн</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Speedometer Panel -->
+        <div class="glass-panel speedometer-box">
+            <div class="gauge-container">
+                <svg class="gauge-svg" viewBox="0 0 240 240">
+                    <defs>
+                        <linearGradient id="cyan-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#06b6d4" />
+                            <stop offset="100%" stop-color="#10b981" />
+                        </linearGradient>
+                        <linearGradient id="rose-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#f43f5e" />
+                            <stop offset="100%" stop-color="#ef4444" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Background Dial Arc -->
+                    <circle class="gauge-bg" cx="120" cy="120" r="110" stroke-dasharray="518" stroke-dashoffset="173" stroke-linecap="round"/>
+                    <!-- Active Progress Arc -->
+                    <circle class="gauge-progress" id="gauge-circle" cx="120" cy="120" r="110" stroke-linecap="round"/>
+                </svg>
+                
+                <!-- Digital Readout inside gauge -->
+                <div class="speed-display">
+                    <span class="speed-value" id="speed-val">0</span>
+                    <span class="speed-unit" id="unit-val">км/ч</span>
+                </div>
+            </div>
+
+            <!-- Stats Panel underneath speed -->
+            <div class="stats-grid" style="width: 100%;">
+                <div class="stat-item">
+                    <span class="stat-value" id="stat-max">0</span>
+                    <span class="stat-label">Макс.</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="stat-avg">0</span>
+                    <span class="stat-label">Средна</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="stat-time">00:00</span>
+                    <span class="stat-label">Време</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="stat-accuracy">±0м</span>
+                    <span class="stat-label">Точност</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Odometer Panel (Trip / Total) -->
+        <div class="glass-panel odometer-grid">
+            
+            <!-- Trip Odometer -->
+            <div class="odometer-card trip">
+                <span class="odometer-label">Дневен (Trip)</span>
+                <div class="odometer-value-box">
+                    <span class="odometer-value" id="odometer-trip">0.00 км</span>
+                </div>
+                <button class="reset-btn" id="btn-reset-trip">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    </svg>
+                    Нулиране
+                </button>
+            </div>
+
+            <!-- Total Odometer -->
+            <div class="odometer-card total">
+                <span class="odometer-label">Общ (Total)</span>
+                <div class="odometer-value-box">
+                    <span class="odometer-value" id="odometer-total">0.0 км</span>
+                </div>
+                <!-- Manual Mileage Setup -->
+                <button class="edit-btn" id="btn-edit-total" title="Въведи одометър ръчно">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                </button>
+                <button class="reset-btn" id="btn-reset-total" style="background: rgba(244,63,94,0.1); border-color: rgba(244,63,94,0.2); color: var(--accent-rose);">
+                    Изчисти
+                </button>
+            </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="glass-panel controls-panel">
+            <!-- Units Selection -->
+            <div class="setting-row">
+                <div class="setting-label">
+                    <span>Мерна единица</span>
+                    <span class="setting-desc">Клометри или Мили в час</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-toggle active" id="btn-unit-kmh">км/ч</button>
+                    <button class="btn-toggle" id="btn-unit-mph">mph</button>
+                </div>
+            </div>
+
+            <!-- Speed Limit Settings -->
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                    <div class="setting-label">
+                        <span>Ограничение на скоростта</span>
+                        <span class="setting-desc">Предупреждение при превишаване</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="sound-toggle-btn" id="btn-sound-toggle" title="Алармен сигнал">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="sound-icon-on">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            </svg>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="sound-icon-off" class="hidden">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                <line x1="23" y1="9" x2="17" y2="15"></line>
+                                <line x1="17" y1="9" x2="23" y2="15"></line>
+                            </svg>
+                        </button>
+                        <div class="btn-group">
+                            <button class="btn-toggle active" id="btn-limit-on">Вкл</button>
+                            <button class="btn-toggle" id="btn-limit-off">Изкл</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="slider-container" id="limit-slider-container">
+                    <input type="range" class="slider" id="limit-slider" min="10" max="150" step="5" value="50">
+                    <span class="slider-val" id="limit-val">50 км/ч</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Panel -->
+        <div class="glass-panel map-section">
+            <div class="map-header">
+                <div class="setting-label">
+                    <span>Маршрут в реално време</span>
+                    <span class="setting-desc">Интерактивно проследяване на пътя</span>
+                </div>
+                <button class="map-toggle-btn" id="btn-map-toggle">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon>
+                        <line x1="9" y1="3" x2="9" y2="18"></line>
+                        <line x1="15" y1="6" x2="15" y2="21"></line>
+                    </svg>
+                    <span>Покажи Карта</span>
+                </button>
+            </div>
+            
+            <div class="map-wrapper" id="map-wrapper">
+                <div id="map"></div>
+                <div class="offline-map-overlay" id="map-offline-overlay">
+                    <div class="offline-map-icon">📡</div>
+                    <h4 style="margin-bottom: 4px;">Картата е офлайн</h4>
+                    <span class="offline-map-text">Уредите работят, но зареждането на географската карта изисква интернет връзка.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Simulator Panel (Useful for desktop testing) -->
+        <div class="simulation-panel">
+            <div class="sim-title">
+                <span>🚗</span> Симулационен режим (Десктоп Тест)
+            </div>
+            <p class="setting-desc" style="margin-bottom: 8px;">Активирайте симулация на стандартно пътуване или симулирайте тест за еднопосочна улица.</p>
+            <div style="display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap;">
+                <button class="sim-btn" id="btn-sim-toggle" style="flex: 1; min-width: 140px;">Стартирай Симулация</button>
+                <button class="sim-btn" id="btn-sim-wrongway" style="flex: 1; min-width: 140px; background: rgba(244,63,94,0.1); border-color: rgba(244,63,94,0.25); color: var(--accent-rose);">Тест Насрещно</button>
+            </div>
+            
+            <div class="sim-controls" id="sim-controls">
+                <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <span class="setting-label">Задай Симулационна Скорост</span>
+                    <div class="slider-container" style="margin-top: 4px;">
+                        <input type="range" class="slider" id="sim-speed-slider" min="0" max="160" value="0">
+                        <span class="slider-val" id="sim-speed-val" style="color: #eab308;">0 км/ч</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Back Link -->
+        <a href="index.html" class="back-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            Назад към портфолиото
+        </a>
+
+    </div>
+
+    <!-- Leaflet JS for Map -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- App Logic -->
+    <script>
+        // --- CONFIG & APP STATE ---
+        let appState = {
+            unit: 'kmh',            // 'kmh' or 'mph'
+            isSpeedAlertActive: true,
+            speedLimit: 50,         // in current unit
+            isMuted: false,
+            currentSpeed: 0,        // in km/h always (for internal math)
+            maxSpeed: 0,            // in km/h
+            totalDistance: 0,       // in meters
+            tripDistance: 0,        // in meters
+            totalTimeActive: 0,     // in seconds
+            avgSpeedAccumulator: 0, // speed * points
+            gpsPointsCount: 0,
+            tripStartTime: null,
+            lastPosition: null,
+            watchId: null,
+            isSimulating: false,
+            simTimer: null,
+            simRouteAngle: 0,       // simulation driving direction
+            isWrongWaySim: false,   // specific test scenario
+            mapInitialized: false,
+            mapVisible: false,
+            map: null,
+            mapPath: null,
+            mapMarker: null,
+            pathCoordinates: [],
+            audioContext: null
+        };
+
+        // OSM Overpass data caching
+        let osmCache = {
+            centerLat: null,
+            centerLon: null,
+            roads: [],
+            lastFetchTime: 0
+        };
+
+        // Load values from LocalStorage
+        if (localStorage.getItem('speedometer_total_distance')) {
+            appState.totalDistance = parseFloat(localStorage.getItem('speedometer_total_distance'));
+        }
+        if (localStorage.getItem('speedometer_trip_distance')) {
+            appState.tripDistance = parseFloat(localStorage.getItem('speedometer_trip_distance'));
+        }
+        if (localStorage.getItem('speedometer_unit')) {
+            appState.unit = localStorage.getItem('speedometer_unit');
+        }
+        if (localStorage.getItem('speedometer_limit_active')) {
+            appState.isSpeedAlertActive = localStorage.getItem('speedometer_limit_active') === 'true';
+        }
+        if (localStorage.getItem('speedometer_limit_val')) {
+            appState.speedLimit = parseInt(localStorage.getItem('speedometer_limit_val'));
+        }
+        if (localStorage.getItem('speedometer_muted')) {
+            appState.isMuted = localStorage.getItem('speedometer_muted') === 'true';
+        }
+
+        // --- DOM ELEMENTS ---
+        const speedValEl = document.getElementById('speed-val');
+        const unitValEl = document.getElementById('unit-val');
+        const statMaxEl = document.getElementById('stat-max');
+        const statAvgEl = document.getElementById('stat-avg');
+        const statTimeEl = document.getElementById('stat-time');
+        const statAccuracyEl = document.getElementById('stat-accuracy');
+        const odometerTripEl = document.getElementById('odometer-trip');
+        const odometerTotalEl = document.getElementById('odometer-total');
+        
+        const btnResetTrip = document.getElementById('btn-reset-trip');
+        const btnResetTotal = document.getElementById('btn-reset-total');
+        const btnEditTotal = document.getElementById('btn-edit-total');
+        
+        const btnUnitKmh = document.getElementById('btn-unit-kmh');
+        const btnUnitMph = document.getElementById('btn-unit-mph');
+        
+        const btnLimitOn = document.getElementById('btn-limit-on');
+        const btnLimitOff = document.getElementById('btn-limit-off');
+        const limitSlider = document.getElementById('limit-slider');
+        const limitValEl = document.getElementById('limit-val');
+        const limitSliderContainer = document.getElementById('limit-slider-container');
+        
+        const btnSoundToggle = document.getElementById('btn-sound-toggle');
+        const soundIconOn = document.getElementById('sound-icon-on');
+        const soundIconOff = document.getElementById('sound-icon-off');
+        
+        const gpsDot = document.getElementById('gps-dot');
+        const gpsText = document.getElementById('gps-text');
+        const wrongWayDot = document.getElementById('wrong-way-dot');
+        const wrongWayText = document.getElementById('wrong-way-text');
+        const wrongWayBanner = document.getElementById('wrong-way-banner');
+        
+        const btnMapToggle = document.getElementById('btn-map-toggle');
+        const mapWrapper = document.getElementById('map-wrapper');
+        const mapOfflineOverlay = document.getElementById('map-offline-overlay');
+        
+        const btnSimToggle = document.getElementById('btn-sim-toggle');
+        const btnSimWrongWay = document.getElementById('btn-sim-wrongway');
+        const simControls = document.getElementById('sim-controls');
+        const simSpeedSlider = document.getElementById('sim-speed-slider');
+        const simSpeedVal = document.getElementById('sim-speed-val');
+        
+        const gaugeCircle = document.getElementById('gauge-circle');
+
+        // --- CONVERTING UTILITIES ---
+        function msToKmh(ms) {
+            return ms * 3.6;
+        }
+
+        function kmhToMph(kmh) {
+            return kmh * 0.621371;
+        }
+
+        function metersToKm(meters) {
+            return meters / 1000;
+        }
+
+        function formatDistance(meters, precise = true) {
+            let km = metersToKm(meters);
+            if (appState.unit === 'mph') {
+                let miles = km * 0.621371;
+                return precise ? `${miles.toFixed(2)} mi` : `${miles.toFixed(1)} mi`;
+            }
+            return precise ? `${km.toFixed(2)} км` : `${km.toFixed(1)} км`;
+        }
+
+        // --- UI INITIALIZATION & EVENT LISTENERS ---
+
+        // Setup sound settings state
+        if (appState.isMuted) {
+            btnSoundToggle.classList.add('muted');
+            soundIconOn.classList.add('hidden');
+            soundIconOff.classList.remove('hidden');
+        }
+
+        // Set correct settings state classes
+        if (appState.unit === 'kmh') {
+            btnUnitKmh.classList.add('active');
+            btnUnitMph.classList.remove('active');
+        } else {
+            btnUnitKmh.classList.remove('active');
+            btnUnitMph.classList.add('active');
+        }
+
+        if (appState.isSpeedAlertActive) {
+            btnLimitOn.classList.add('active');
+            btnLimitOff.classList.remove('active');
+            limitSliderContainer.classList.remove('hidden');
+        } else {
+            btnLimitOn.classList.remove('active');
+            btnLimitOff.classList.add('active');
+            limitSliderContainer.classList.add('hidden');
+        }
+
+        // Speed Limit initial settings
+        limitSlider.value = appState.speedLimit;
+        limitValEl.innerText = `${appState.speedLimit} ${appState.unit === 'kmh' ? 'км/ч' : 'mph'}`;
+
+        // Event listeners for Units
+        btnUnitKmh.addEventListener('click', () => {
+            if (appState.unit !== 'kmh') {
+                appState.unit = 'kmh';
+                localStorage.setItem('speedometer_unit', 'kmh');
+                btnUnitKmh.classList.add('active');
+                btnUnitMph.classList.remove('active');
+                
+                // Convert limit setting
+                appState.speedLimit = Math.round(appState.speedLimit * 1.60934);
+                limitSlider.min = 10;
+                limitSlider.max = 180;
+                limitSlider.value = appState.speedLimit;
+                
+                updateUI();
+            }
+        });
+
+        btnUnitMph.addEventListener('click', () => {
+            if (appState.unit !== 'mph') {
+                appState.unit = 'mph';
+                localStorage.setItem('speedometer_unit', 'mph');
+                btnUnitKmh.classList.remove('active');
+                btnUnitMph.classList.add('active');
+                
+                // Convert limit setting
+                appState.speedLimit = Math.max(10, Math.round(appState.speedLimit / 1.60934));
+                limitSlider.min = 5;
+                limitSlider.max = 110;
+                limitSlider.value = appState.speedLimit;
+                
+                updateUI();
+            }
+        });
+
+        // Event listeners for Warning Limits
+        btnLimitOn.addEventListener('click', () => {
+            appState.isSpeedAlertActive = true;
+            localStorage.setItem('speedometer_limit_active', 'true');
+            btnLimitOn.classList.add('active');
+            btnLimitOff.classList.remove('active');
+            limitSliderContainer.classList.remove('hidden');
+        });
+
+        btnLimitOff.addEventListener('click', () => {
+            appState.isSpeedAlertActive = false;
+            localStorage.setItem('speedometer_limit_active', 'false');
+            btnLimitOn.classList.remove('active');
+            btnLimitOff.classList.add('active');
+            limitSliderContainer.classList.add('hidden');
+            document.body.classList.remove('speed-alert'); // clean alert
+        });
+
+        limitSlider.addEventListener('input', (e) => {
+            appState.speedLimit = parseInt(e.target.value);
+            localStorage.setItem('speedometer_limit_val', appState.speedLimit);
+            limitValEl.innerText = `${appState.speedLimit} ${appState.unit === 'kmh' ? 'км/ч' : 'mph'}`;
+        });
+
+        // Event listener for Alarm Audio Mute
+        btnSoundToggle.addEventListener('click', () => {
+            appState.isMuted = !appState.isMuted;
+            localStorage.setItem('speedometer_muted', appState.isMuted);
+            
+            if (appState.isMuted) {
+                btnSoundToggle.classList.add('muted');
+                soundIconOn.classList.add('hidden');
+                soundIconOff.classList.remove('hidden');
+            } else {
+                btnSoundToggle.classList.remove('muted');
+                soundIconOn.classList.remove('hidden');
+                soundIconOff.classList.add('hidden');
+                initAudio(); // Initialize audio context on first interaction
+            }
+        });
+
+        // Reset Daily Odometer
+        btnResetTrip.addEventListener('click', () => {
+            if (confirm('Нулиране на дневния одометър и времето за това пътуване?')) {
+                appState.tripDistance = 0;
+                appState.totalTimeActive = 0;
+                appState.avgSpeedAccumulator = 0;
+                appState.gpsPointsCount = 0;
+                appState.tripStartTime = null;
+                localStorage.setItem('speedometer_trip_distance', '0');
+                
+                updateUI();
+                
+                // Clear map path
+                if (appState.mapPath) {
+                    appState.pathCoordinates = [];
+                    appState.mapPath.setLatLngs([]);
+                }
+            }
+        });
+
+        // Reset Total Odometer
+        btnResetTotal.addEventListener('click', () => {
+            if (confirm('ВНИМАНИЕ: Това ще нулира общия изминат път! Сигурни ли сте?')) {
+                appState.totalDistance = 0;
+                localStorage.setItem('speedometer_total_distance', '0');
+                updateUI();
+            }
+        });
+
+        // Edit Total Odometer (Manual mileage entry)
+        btnEditTotal.addEventListener('click', () => {
+            let unitStr = appState.unit === 'kmh' ? 'километри' : 'мили';
+            let input = prompt(`Въведете стойност на общия одометър (${unitStr}):`, (metersToKm(appState.totalDistance) * (appState.unit === 'mph' ? 0.621371 : 1)).toFixed(1));
+            
+            if (input !== null) {
+                let parsed = parseFloat(input);
+                if (!isNaN(parsed) && parsed >= 0) {
+                    let newMeters = parsed * 1000;
+                    if (appState.unit === 'mph') {
+                        newMeters = (parsed / 0.621371) * 1000;
+                    }
+                    appState.totalDistance = newMeters;
+                    localStorage.setItem('speedometer_total_distance', appState.totalDistance.toString());
+                    updateUI();
+                } else {
+                    alert('Невалидно число!');
+                }
+            }
+        });
+
+        // Toggle Map View
+        btnMapToggle.addEventListener('click', () => {
+            appState.mapVisible = !appState.mapVisible;
+            if (appState.mapVisible) {
+                mapWrapper.classList.add('visible');
+                btnMapToggle.querySelector('span').innerText = 'Скрий Карта';
+                initMap();
+                setTimeout(() => {
+                    if (appState.map) {
+                        appState.map.invalidateSize(); // Ensure tiles render properly
+                    }
+                }, 200);
+            } else {
+                mapWrapper.classList.remove('visible');
+                btnMapToggle.querySelector('span').innerText = 'Покажи Карта';
+            }
+        });
+
+        // --- INTERACTION SOUNDS ---
+        function initAudio() {
+            if (!appState.audioContext) {
+                appState.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (appState.audioContext.state === 'suspended') {
+                appState.audioContext.resume();
+            }
+        }
+
+        let nextAlertTime = 0;
+        function playWarningBeep() {
+            if (appState.isMuted) return;
+            initAudio();
+            
+            const now = appState.audioContext.currentTime;
+            if (now < nextAlertTime) return; // Prevent overlapping sounds
+
+            const osc = appState.audioContext.createOscillator();
+            const gain = appState.audioContext.createGain();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(880, now); // A5 note
+            osc.frequency.exponentialRampToValueAtTime(440, now + 0.15); // Slide down
+
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+            osc.connect(gain);
+            gain.connect(appState.audioContext.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.2);
+            
+            nextAlertTime = now + 0.5; // Cooldown of 0.5 seconds
+        }
+
+        let nextWrongWayAlertTime = 0;
+        let sirenToggle = false;
+        function playWrongWaySiren() {
+            if (appState.isMuted) return;
+            initAudio();
+
+            const now = appState.audioContext.currentTime;
+            if (now < nextWrongWayAlertTime) return;
+
+            const osc = appState.audioContext.createOscillator();
+            const gain = appState.audioContext.createGain();
+
+            osc.type = 'sine';
+            sirenToggle = !sirenToggle;
+            const freq = sirenToggle ? 950 : 1250; // Alternating tones
+            osc.frequency.setValueAtTime(freq, now);
+
+            gain.gain.setValueAtTime(0.25, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+            osc.connect(gain);
+            gain.connect(appState.audioContext.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.4);
+
+            nextWrongWayAlertTime = now + 0.4;
+        }
+
+        // --- MAP LOGIC ---
+        function initMap() {
+            if (appState.mapInitialized) return;
+
+            // Online status check for Leaflet maps
+            if (!navigator.onLine) {
+                mapOfflineOverlay.classList.add('active');
+            }
+
+            window.addEventListener('online', () => mapOfflineOverlay.classList.remove('active'));
+            window.addEventListener('offline', () => mapOfflineOverlay.classList.add('active'));
+
+            // Default center of Bulgaria (Sofia coords as start)
+            const startLat = 42.6977;
+            const startLon = 23.3219;
+
+            appState.map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([startLat, startLon], 15);
+
+            // Dark-themed tiles from CartoDB (breathtaking styling matching the slate app design)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(appState.map);
+
+            // Path line
+            appState.mapPath = L.polyline([], {
+                color: '#06b6d4',
+                weight: 5,
+                opacity: 0.8,
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(appState.map);
+
+            // Current position pulse icon
+            const customPulseIcon = L.divIcon({
+                className: 'pulse-marker',
+                html: '<div id="map-pulse-element" style="width: 16px; height: 16px; border-radius:50%; background:#06b6d4; border:3px solid #fff; box-shadow:0 0 10px #06b6d4;"></div>',
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+
+            appState.mapMarker = L.marker([startLat, startLon], { icon: customPulseIcon }).addTo(appState.map);
+            appState.mapInitialized = true;
+        }
+
+        function updateMapLocation(lat, lon, isWrongWay = false) {
+            if (!appState.mapInitialized || !appState.mapVisible) return;
+
+            const latlng = [lat, lon];
+            appState.mapMarker.setLatLng(latlng);
+            
+            // Push coords to path
+            appState.pathCoordinates.push(latlng);
+            appState.mapPath.setLatLngs(appState.pathCoordinates);
+            
+            // Pan map
+            appState.map.panTo(latlng);
+
+            // Dynamically change map pulse color on wrong way
+            const pulseEl = document.getElementById('map-pulse-element');
+            if (pulseEl) {
+                if (isWrongWay) {
+                    pulseEl.style.background = '#f43f5e';
+                    pulseEl.style.boxShadow = '0 0 12px #f43f5e';
+                } else {
+                    pulseEl.style.background = '#06b6d4';
+                    pulseEl.style.boxShadow = '0 0 10px #06b6d4';
+                }
+            }
+        }
+
+        // --- DISTANCE & LOCATION LOGIC ---
+
+        // Bearing / Heading calculation
+        function calculateBearing(lat1, lon1, lat2, lon2) {
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const lat1Rad = lat1 * Math.PI / 180;
+            const lat2Rad = lat2 * Math.PI / 180;
+            const y = Math.sin(dLon) * Math.cos(lat2Rad);
+            const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+            let bearing = Math.atan2(y, x) * 180 / Math.PI;
+            return (bearing + 360) % 360; // 0 to 360 degrees
+        }
+
+        // Distance from point (lat, lon) to segment (lat1, lon1) - (lat2, lon2) in meters
+        function getDistanceToSegment(lat, lon, lat1, lon1, lat2, lon2) {
+            const y = lat * 111111;
+            const x = lon * 111111 * Math.cos(lat * Math.PI / 180);
+            const y1 = lat1 * 111111;
+            const x1 = lon1 * 111111 * Math.cos(lat1 * Math.PI / 180);
+            const y2 = lat2 * 111111;
+            const x2 = lon2 * 111111 * Math.cos(lat2 * Math.PI / 180);
+
+            const A = x - x1;
+            const B = y - y1;
+            const C = x2 - x1;
+            const D = y2 - y1;
+
+            const dot = A * C + B * D;
+            const len_sq = C * C + D * D;
+            let param = -1;
+            if (len_sq !== 0) param = dot / len_sq;
+
+            let xx, yy;
+
+            if (param < 0) {
+                xx = x1;
+                yy = y1;
+            } else if (param > 1) {
+                xx = x2;
+                yy = y2;
+            } else {
+                xx = x1 + param * C;
+                yy = y1 + param * D;
+            }
+
+            const dx = x - xx;
+            const dy = y - yy;
+            return Math.sqrt(dx * dx + dy * dy); // in meters
+        }
+
+        // Haversine formula to compute distance in meters
+        function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Earth radius in meters
+            const phi1 = lat1 * Math.PI / 180;
+            const phi2 = lat2 * Math.PI / 180;
+            const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+            const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+                      Math.cos(phi1) * Math.cos(phi2) *
+                      Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+            
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c; // in meters
+        }
+
+        // OSM OVERPASS API ROAD RETRIEVAL
+        async function fetchOSMRoads(lat, lon) {
+            if (appState.isWrongWaySim) return; // ignore API calls in mock wrong-way test
+            
+            if (!navigator.onLine) {
+                wrongWayText.innerText = 'Насрещно: Офлайн';
+                wrongWayDot.className = 'status-dot';
+                wrongWayDot.style.backgroundColor = 'var(--text-muted)';
+                wrongWayDot.style.animation = 'none';
+                return;
+            }
+
+            const now = Date.now();
+            if (now - osmCache.lastFetchTime < 8000) return; // Throttling requests
+            osmCache.lastFetchTime = now;
+
+            const query = `[out:json];way(around:45,${lat},${lon})[highway];out geom;`;
+            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Overpass error');
+                const data = await response.json();
+                
+                osmCache.centerLat = lat;
+                osmCache.centerLon = lon;
+                osmCache.roads = data.elements || [];
+                
+                wrongWayText.innerText = 'Насрещно: ОК';
+                wrongWayDot.className = 'status-dot connected';
+                wrongWayDot.style.backgroundColor = 'var(--accent-emerald)';
+                wrongWayDot.style.animation = 'none';
+            } catch (e) {
+                console.error('Failed to fetch OSM roads', e);
+                wrongWayText.innerText = 'Насрещно: грешка';
+                wrongWayDot.className = 'status-dot';
+                wrongWayDot.style.backgroundColor = 'var(--accent-rose)';
+                wrongWayDot.style.animation = 'none';
+            }
+        }
+
+        // Wrong Way Detection Logic
+        function checkWrongWay(currentLat, currentLon, prevLat, prevLon) {
+            if (osmCache.roads.length === 0) {
+                setWrongWayAlert(false);
+                return;
+            }
+
+            const userBearing = calculateBearing(prevLat, prevLon, currentLat, currentLon);
+            
+            let closestRoad = null;
+            let closestSegment = null;
+            let minDistance = Infinity;
+
+            // Find closest segment from OSM ways cached
+            for (const road of osmCache.roads) {
+                if (!road.geometry || road.geometry.length < 2) continue;
+                
+                for (let i = 0; i < road.geometry.length - 1; i++) {
+                    const p1 = road.geometry[i];
+                    const p2 = road.geometry[i+1];
+                    
+                    const dist = getDistanceToSegment(currentLat, currentLon, p1.lat, p1.lon, p2.lat, p2.lon);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closestRoad = road;
+                        closestSegment = { p1, p2, index: i };
+                    }
+                }
+            }
+
+            // Threshold: must be within 30 meters of a road segment
+            if (closestRoad && minDistance < 30) {
+                const tags = closestRoad.tags || {};
+                const isOneway = tags.oneway === 'yes' || tags.oneway === '1' || tags.oneway === '-1' || tags.junction === 'roundabout';
+                
+                if (isOneway) {
+                    let roadBearing = 0;
+                    if (tags.oneway === '-1') {
+                        // Reverse direction of OSM node order
+                        roadBearing = calculateBearing(closestSegment.p2.lat, closestSegment.p2.lon, closestSegment.p1.lat, closestSegment.p1.lon);
+                    } else {
+                        // Forward direction of OSM node order
+                        roadBearing = calculateBearing(closestSegment.p1.lat, closestSegment.p1.lon, closestSegment.p2.lat, closestSegment.p2.lon);
+                    }
+
+                    // Bearing delta
+                    let diff = Math.abs(userBearing - roadBearing);
+                    if (diff > 180) diff = 360 - diff;
+
+                    // If direction differs by > 100 degrees and speed is > 3 km/h
+                    if (diff > 100 && appState.currentSpeed > 3) {
+                        setWrongWayAlert(true, tags.name || 'еднопосочна улица');
+                        return;
+                    }
+                }
+            }
+
+            setWrongWayAlert(false);
+        }
+
+        function setWrongWayAlert(isActive, streetName = '') {
+            if (isActive) {
+                document.body.classList.add('wrong-way-alert');
+                wrongWayBanner.style.display = 'block';
+                wrongWayBanner.innerText = `⚠️ НАСРЕЩНО ДВИЖЕНИЕ! ${streetName ? '(' + streetName + ')' : ''} ⚠️`;
+                
+                wrongWayDot.className = 'status-dot warning';
+                wrongWayDot.style.backgroundColor = 'var(--accent-rose)';
+                wrongWayText.innerText = 'Насрещно: НАСРЕЩНО!';
+                
+                playWrongWaySiren();
+            } else {
+                document.body.classList.remove('wrong-way-alert');
+                wrongWayBanner.style.display = 'none';
+                
+                if (osmCache.roads.length > 0) {
+                    wrongWayDot.className = 'status-dot connected';
+                    wrongWayDot.style.backgroundColor = 'var(--accent-emerald)';
+                    wrongWayDot.style.animation = 'none';
+                    wrongWayText.innerText = 'Насрещно: ОК';
+                } else {
+                    wrongWayDot.className = 'status-dot';
+                    wrongWayDot.style.backgroundColor = 'var(--text-muted)';
+                    wrongWayDot.style.animation = 'none';
+                    wrongWayText.innerText = 'Насрещно: няма данни';
+                }
+            }
+        }
+
+        // Handle new coordinates received
+        function handleLocationUpdate(position) {
+            let lat = position.coords.latitude;
+            let lon = position.coords.longitude;
+            let speed = position.coords.speed; // speed in m/s directly from GPS
+            let accuracy = position.coords.accuracy;
+
+            // GPS Signal Quality styling
+            gpsDot.className = 'status-dot connected';
+            gpsText.innerText = 'GPS Свързан';
+            statAccuracyEl.innerText = `±${Math.round(accuracy)}м`;
+
+            // Filter bad signal
+            if (accuracy > 35) {
+                return; // Ignore inaccurate coordinates
+            }
+
+            // Parse Speed
+            let speedKmh = 0;
+            if (speed !== null && speed >= 0) {
+                speedKmh = msToKmh(speed);
+            } else if (appState.lastPosition) {
+                // Fallback: calculate speed from time and distance
+                let timeDiff = (position.timestamp - appState.lastPosition.timestamp) / 1000;
+                if (timeDiff > 0.5) {
+                    let d = calculateHaversineDistance(
+                        appState.lastPosition.coords.latitude,
+                        appState.lastPosition.coords.longitude,
+                        lat,
+                        lon
+                    );
+                    speedKmh = msToKmh(d / timeDiff);
+                }
+            }
+
+            // Noise threshold
+            if (speedKmh < 1.2) {
+                speedKmh = 0;
+            }
+
+            appState.currentSpeed = speedKmh;
+
+            // Process trip and total distance
+            if (appState.lastPosition && speedKmh > 0) {
+                let distMeters = calculateHaversineDistance(
+                    appState.lastPosition.coords.latitude,
+                    appState.lastPosition.coords.longitude,
+                    lat,
+                    lon
+                );
+
+                // GPS jumps filter: ignore points implying > 250 km/h acceleration jumps
+                let timeSec = (position.timestamp - appState.lastPosition.timestamp) / 1000;
+                if (timeSec > 0) {
+                    let calculatedSpeed = (distMeters / timeSec) * 3.6;
+                    if (calculatedSpeed < 260 && distMeters > 1.5) {
+                        appState.totalDistance += distMeters;
+                        appState.tripDistance += distMeters;
+
+                        // Save updates
+                        localStorage.setItem('speedometer_total_distance', appState.totalDistance.toString());
+                        localStorage.setItem('speedometer_trip_distance', appState.tripDistance.toString());
+                    }
+                }
+            }
+
+            // Stat calculations
+            if (speedKmh > appState.maxSpeed) {
+                appState.maxSpeed = speedKmh;
+            }
+
+            if (speedKmh > 0.5) {
+                appState.avgSpeedAccumulator += speedKmh;
+                appState.gpsPointsCount++;
+                if (!appState.tripStartTime) {
+                    appState.tripStartTime = Date.now();
+                }
+            }
+
+            // Wrong Way Driving Check
+            if (appState.lastPosition && speedKmh > 2.5) {
+                let prevLat = appState.lastPosition.coords.latitude;
+                let prevLon = appState.lastPosition.coords.longitude;
+                
+                // Retrieve roads if we moved > 60m from cache center
+                let distMoved = calculateHaversineDistance(osmCache.centerLat || 0, osmCache.centerLon || 0, lat, lon);
+                if (osmCache.centerLat === null || distMoved > 60) {
+                    fetchOSMRoads(lat, lon);
+                }
+
+                checkWrongWay(lat, lon, prevLat, prevLon);
+            } else if (speedKmh <= 2.5) {
+                setWrongWayAlert(false); // Disable alerts at stand-still
+            }
+
+            appState.lastPosition = position;
+
+            // Update UI & Map
+            updateUI();
+            updateMapLocation(lat, lon, document.body.classList.contains('wrong-way-alert'));
+        }
+
+        function handleLocationError(error) {
+            gpsDot.className = 'status-dot';
+            if (error.code === error.PERMISSION_DENIED) {
+                gpsText.innerText = 'Достъпът отказан';
+                alert('Моля, разрешете достъп до геолокация, за да работи скоростомерът.');
+            } else {
+                gpsText.innerText = 'Няма GPS сигнал';
+            }
+        }
+
+        // Watch Position Setup
+        function startTracking() {
+            if ("geolocation" in navigator) {
+                appState.watchId = navigator.geolocation.watchPosition(
+                    handleLocationUpdate,
+                    handleLocationError,
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 5000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                alert("Геолокацията не се поддържа от този браузър.");
+            }
+        }
+
+        // --- SIMULATION MODE LOGIC (Perfect for Desktop) ---
+        let simSpeed = 0;
+        let simLat = 42.6977;
+        let simLon = 23.3219;
+
+        function startSimulationCommon(isWrongWayTest = false) {
+            // Cancel real GPS
+            if (appState.watchId) {
+                navigator.geolocation.clearWatch(appState.watchId);
+            }
+            if (appState.simTimer) {
+                clearInterval(appState.simTimer);
+            }
+
+            appState.isSimulating = true;
+            appState.isWrongWaySim = isWrongWayTest;
+
+            // UI state
+            btnSimToggle.innerText = 'Спри Симулация';
+            btnSimToggle.classList.add('active');
+            simControls.classList.add('visible');
+            gpsDot.className = 'status-dot simulating';
+            gpsText.innerText = 'Симулатор';
+            statAccuracyEl.innerText = '±3м';
+
+            // Auto-open map to showcase path drawing
+            if (!appState.mapVisible) {
+                btnMapToggle.click();
+            }
+
+            if (isWrongWayTest) {
+                // Mock one way street in Sofia (ул. Иван Вазов)
+                // Direction of nodes: Eastwards (bearing ~90deg)
+                simLat = 42.6908;
+                simLon = 23.3315; // Start at east end
+                appState.simRouteAngle = Math.PI; // Drive West (bearing 270deg - OPPOSITE)
+                
+                osmCache.centerLat = 42.6908;
+                osmCache.centerLon = 23.3300;
+                osmCache.roads = [{
+                    id: 999999,
+                    tags: {
+                        name: "ул. Иван Вазов (Тест еднопосочна)",
+                        oneway: "yes",
+                        highway: "residential"
+                    },
+                    geometry: [
+                        { lat: 42.6908, lon: 23.3280 },
+                        { lat: 42.6908, lon: 23.3320 }
+                    ]
+                }];
+
+                wrongWayText.innerText = 'Насрещно: ОК';
+                wrongWayDot.className = 'status-dot connected';
+                wrongWayDot.style.backgroundColor = 'var(--accent-emerald)';
+
+                // Force speed slider to 50 km/h for wrong way simulation
+                simSpeedSlider.value = appState.unit === 'mph' ? Math.round(50 * 0.621371) : 50;
+                simSpeedVal.innerText = `${simSpeedSlider.value} ${appState.unit === 'kmh' ? 'км/ч' : 'mph'}`;
+            } else {
+                // Normal random driving route
+                simLat = 42.6685;
+                simLon = 23.3106;
+                appState.simRouteAngle = 0;
+                osmCache.roads = [];
+                setWrongWayAlert(false);
+                
+                wrongWayText.innerText = 'Насрещно: няма данни';
+                wrongWayDot.className = 'status-dot';
+                wrongWayDot.style.backgroundColor = 'var(--text-muted)';
+            }
+
+            appState.lastPosition = {
+                coords: { latitude: simLat, longitude: simLon },
+                timestamp: Date.now()
+            };
+
+            setTimeout(() => {
+                updateMapLocation(simLat, simLon);
+            }, 300);
+
+            appState.simTimer = setInterval(runSimulationStep, 1000);
+        }
+
+        function stopSimulation() {
+            clearInterval(appState.simTimer);
+            appState.isSimulating = false;
+            appState.isWrongWaySim = false;
+
+            btnSimToggle.innerText = 'Стартирай Симулация';
+            btnSimToggle.classList.remove('active');
+            simControls.classList.remove('visible');
+            
+            appState.currentSpeed = 0;
+            appState.lastPosition = null;
+            setWrongWayAlert(false);
+
+            // Restart real tracking
+            startTracking();
+        }
+
+        function runSimulationStep() {
+            simSpeed = parseInt(simSpeedSlider.value);
+            
+            // Convert to km/h internally
+            let speedKmh = appState.unit === 'mph' ? (simSpeed / 0.621371) : simSpeed;
+            appState.currentSpeed = speedKmh;
+
+            if (speedKmh > 0) {
+                // If wrong way, drive strictly straight along route angle. If normal, wobble route slightly
+                if (!appState.isWrongWaySim) {
+                    appState.simRouteAngle += (Math.random() - 0.5) * 0.2;
+                }
+
+                let speedMs = speedKmh / 3.6;
+                
+                let dLat = (speedMs * Math.cos(appState.simRouteAngle)) / 111111;
+                let dLon = (speedMs * Math.sin(appState.simRouteAngle)) / (111111 * Math.cos(simLat * Math.PI / 180));
+
+                simLat += dLat;
+                simLon += dLon;
+
+                // Accumulate distance
+                let distMeters = speedMs;
+                appState.totalDistance += distMeters;
+                appState.tripDistance += distMeters;
+
+                localStorage.setItem('speedometer_total_distance', appState.totalDistance.toString());
+                localStorage.setItem('speedometer_trip_distance', appState.tripDistance.toString());
+
+                if (speedKmh > appState.maxSpeed) {
+                    appState.maxSpeed = speedKmh;
+                }
+
+                appState.avgSpeedAccumulator += speedKmh;
+                appState.gpsPointsCount++;
+                
+                if (!appState.tripStartTime) {
+                    appState.tripStartTime = Date.now();
+                }
+            }
+
+            // Fake update position structure
+            let fakePosition = {
+                coords: {
+                    latitude: simLat,
+                    longitude: simLon,
+                    speed: speedKmh / 3.6,
+                    accuracy: 3
+                },
+                timestamp: Date.now()
+            };
+
+            // Wrong way detection in simulation
+            if (appState.lastPosition && speedKmh > 2.5) {
+                let prevLat = appState.lastPosition.coords.latitude;
+                let prevLon = appState.lastPosition.coords.longitude;
+                checkWrongWay(simLat, simLon, prevLat, prevLon);
+            } else if (speedKmh <= 2.5) {
+                setWrongWayAlert(false);
+            }
+
+            appState.lastPosition = fakePosition;
+
+            updateUI();
+            updateMapLocation(simLat, simLon, document.body.classList.contains('wrong-way-alert'));
+        }
+
+        btnSimToggle.addEventListener('click', () => {
+            if (appState.isSimulating) {
+                stopSimulation();
+            } else {
+                startSimulationCommon(false);
+            }
+        });
+
+        btnSimWrongWay.addEventListener('click', () => {
+            startSimulationCommon(true);
+        });
+
+        simSpeedSlider.addEventListener('input', (e) => {
+            let val = parseInt(e.target.value);
+            simSpeedVal.innerText = `${val} ${appState.unit === 'kmh' ? 'км/ч' : 'mph'}`;
+        });
+
+        // --- TIME ACCUMULATOR TIMER ---
+        setInterval(() => {
+            // Only increment time if moving
+            if (appState.currentSpeed > 1) {
+                appState.totalTimeActive++;
+                updateTimeStat();
+            }
+        }, 1000);
+
+        function updateTimeStat() {
+            let hours = Math.floor(appState.totalTimeActive / 3600);
+            let minutes = Math.floor((appState.totalTimeActive % 3600) / 60);
+            let seconds = appState.totalTimeActive % 60;
+
+            let formatted = "";
+            if (hours > 0) {
+                formatted += `${hours.toString().padStart(2, '0')}:`;
+            }
+            formatted += `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            statTimeEl.innerText = formatted;
+        }
+
+        // --- UI DRAWING & DIAL RENDER ---
+
+        function updateUI() {
+            let displaySpeed = appState.currentSpeed;
+            let displayMax = appState.maxSpeed;
+            
+            if (appState.unit === 'mph') {
+                displaySpeed = kmhToMph(displaySpeed);
+                displayMax = kmhToMph(displayMax);
+            }
+
+            displaySpeed = Math.round(displaySpeed);
+            displayMax = Math.round(displayMax);
+
+            speedValEl.innerText = displaySpeed;
+            unitValEl.innerText = appState.unit === 'kmh' ? 'км/ч' : 'mph';
+            statMaxEl.innerText = displayMax;
+
+            // Speed alarm check (only if wrong way alarm is NOT active, wrong way takes precedence!)
+            if (!document.body.classList.contains('wrong-way-alert')) {
+                if (appState.isSpeedAlertActive && displaySpeed > appState.speedLimit) {
+                    document.body.classList.add('speed-alert');
+                    playWarningBeep();
+                } else {
+                    document.body.classList.remove('speed-alert');
+                }
+            } else {
+                document.body.classList.remove('speed-alert'); // wrong way is active
+            }
+
+            // Avg Speed calculation
+            let avgSpeed = 0;
+            if (appState.gpsPointsCount > 0) {
+                avgSpeed = appState.avgSpeedAccumulator / appState.gpsPointsCount;
+                if (appState.unit === 'mph') {
+                    avgSpeed = kmhToMph(avgSpeed);
+                }
+            }
+            statAvgEl.innerText = Math.round(avgSpeed);
+
+            // Odometers display
+            odometerTripEl.innerText = formatDistance(appState.tripDistance, true);
+            
+            // Total odometer display
+            let totalDistKm = metersToKm(appState.totalDistance);
+            if (appState.unit === 'mph') {
+                totalDistKm = totalDistKm * 0.621371;
+            }
+            odometerTotalEl.innerText = `${totalDistKm.toFixed(1)} ${appState.unit === 'kmh' ? 'км' : 'mi'}`;
+
+            // Gauge progress ring math
+            let maxDialSpeed = appState.unit === 'kmh' ? 180 : 110;
+            let speedPercent = Math.min(100, (displaySpeed / maxDialSpeed) * 100);
+            
+            let dashoffset = 518 - ((speedPercent / 100) * (518 - 173));
+            gaugeCircle.style.strokeDasharray = "518 691";
+            gaugeCircle.style.strokeDashoffset = dashoffset;
+        }
+
+        // Run initial UI draw
+        updateUI();
+
+        // Start GPS
+        startTracking();
+
+        // --- PWA SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw-speedometer.js')
+                    .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

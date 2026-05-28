@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bg-grad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </radialGradient>
+    <!-- Glow Effect -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="15" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <!-- Neon Gradient -->
+    <linearGradient id="neon-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="needle-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="128" fill="url(#bg-grad)"/>
+
+  <!-- Inner Dial Ring -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="rgba(56, 189, 248, 0.08)" stroke-width="24"/>
+  <circle cx="256" cy="256" r="200" fill="none" stroke="url(#neon-cyan)" stroke-width="12" stroke-dasharray="940" stroke-dashoffset="300" stroke-linecap="round" filter="url(#glow)"/>
+
+  <!-- Tick Marks -->
+  <g stroke="rgba(255, 255, 255, 0.2)" stroke-width="4" stroke-linecap="round">
+    <line x1="256" y1="86" x2="256" y2="102"/>
+    <line x1="256" y1="410" x2="256" y2="426"/>
+    <line x1="86" y1="256" x2="102" y2="256"/>
+    <line x1="410" y1="256" x2="426" y2="256"/>
+    <line x1="136" y1="136" x2="148" y2="148"/>
+    <line x1="376" y1="136" x2="364" y2="148"/>
+    <line x1="136" y1="376" x2="148" y2="364"/>
+    <line x1="376" y1="376" x2="364" y2="364"/>
+  </g>
+
+  <!-- Speed Needle -->
+  <g transform="rotate(45, 256, 256)" filter="url(#glow-strong)">
+    <polygon points="256,70 262,256 250,256" fill="url(#needle-grad)"/>
+    <circle cx="256" cy="256" r="16" fill="#ffffff"/>
+  </g>
+  
+  <circle cx="256" cy="256" r="24" fill="none" stroke="#ef4444" stroke-width="6" filter="url(#glow)"/>
+</svg>
