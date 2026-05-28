@@ -603,174 +603,6 @@
             display: block;
         }
 
-        .map-wrapper.map-fullscreen {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            max-height: none !important;
-            z-index: 2000 !important;
-            border-radius: 0 !important;
-            border: none !important;
-        }
-
-        .map-overlay-container {
-            display: none;
-        }
-
-        .map-wrapper.map-fullscreen .map-overlay-container {
-            display: block;
-        }
-
-        .map-overlay-back-btn {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 18px;
-            border-radius: 14px;
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #fff;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            z-index: 2010;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-            transition: all 0.2s ease;
-        }
-
-        .map-overlay-back-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateY(-1px);
-        }
-
-        .map-overlay-bottom-panel {
-            position: absolute;
-            bottom: 24px;
-            left: 24px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            z-index: 2010;
-            pointer-events: none;
-        }
-
-        .map-overlay-speed-box {
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-radius: 20px;
-            padding: 12px 24px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            min-width: 110px;
-            pointer-events: auto;
-        }
-
-        .map-overlay-speed-val {
-            font-family: var(--font-digital);
-            font-size: 4rem;
-            font-weight: 900;
-            line-height: 1;
-            color: #fff;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-            transition: color 0.2s;
-        }
-
-        body.speed-alert .map-overlay-speed-val {
-            color: #ff3b5c !important;
-            text-shadow: 0 0 15px rgba(255, 59, 92, 0.6) !important;
-        }
-
-        body.wrong-way-alert .map-overlay-speed-val {
-            color: #ff3b5c !important;
-            text-shadow: 0 0 15px rgba(255, 59, 92, 0.6) !important;
-        }
-
-        .map-overlay-speed-unit {
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            margin-top: 2px;
-            letter-spacing: 1px;
-        }
-
-        .map-overlay-limit-box {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: auto;
-        }
-
-        .speed-limit-sign {
-            width: 68px;
-            height: 68px;
-            border-radius: 50%;
-            background: #ffffff;
-            border: 8px solid #ff3b30;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 2px 5px rgba(0,0,0,0.2);
-        }
-
-        .speed-limit-sign span {
-            font-family: var(--font-digital);
-            font-size: 1.9rem;
-            font-weight: 900;
-            color: #000000;
-            line-height: 1;
-            letter-spacing: -1px;
-        }
-
-        .map-overlay-wrong-way {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #ff3b5c;
-            border: 2px solid #fff;
-            color: #fff;
-            padding: 10px 24px;
-            border-radius: 14px;
-            font-weight: 800;
-            font-size: 1.1rem;
-            z-index: 2010;
-            box-shadow: 0 8px 24px rgba(255, 59, 92, 0.5);
-            display: none;
-            white-space: nowrap;
-            animation: map-wrong-way-flash 0.4s infinite alternate;
-        }
-
-        body.wrong-way-alert .map-overlay-wrong-way {
-            display: block;
-        }
-
-        @keyframes map-wrong-way-flash {
-            0% { opacity: 0.8; transform: translateX(-50%) scale(0.98); }
-            100% { opacity: 1; transform: translateX(-50%) scale(1.02); }
-        }
-
-        body.wrong-way-alert #map-wrapper.map-fullscreen {
-            animation: map-wrong-way-glow 0.5s infinite alternate;
-        }
-
-        @keyframes map-wrong-way-glow {
-            0% { box-shadow: inset 0 0 20px rgba(244, 63, 94, 0.4); }
-            100% { box-shadow: inset 0 0 50px rgba(244, 63, 94, 0.9); }
-        }
-
         #map {
             width: 100%;
             height: 100%;
@@ -1265,41 +1097,8 @@
                 </button>
             </div>
             
-            <div class="map-wrapper" id="map-wrapper">
+            <div class="map-wrapper" id="map-wrapper" style="cursor: pointer;" title="Кликнете за отваряне на цял екран в нов прозорец">
                 <div id="map"></div>
-                
-                <!-- Floating Map Fullscreen Overlays -->
-                <div class="map-overlay-container">
-                    <!-- Back Button -->
-                    <button class="map-overlay-back-btn" id="btn-map-fullscreen-back">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                        <span>Назад</span>
-                    </button>
-
-                    <!-- Top Wrong Way Banner -->
-                    <div class="map-overlay-wrong-way" id="map-overlay-wrong-way">
-                        ⚠️ НАСРЕЩНО ДВИЖЕНИЕ! ⚠️
-                    </div>
-
-                    <!-- Bottom Floating Info Panel -->
-                    <div class="map-overlay-bottom-panel">
-                        <!-- Speed Display -->
-                        <div class="map-overlay-speed-box">
-                            <span class="map-overlay-speed-val" id="map-overlay-speed-val">0</span>
-                            <span class="map-overlay-speed-unit" id="map-overlay-speed-unit">км/ч</span>
-                        </div>
-
-                        <!-- Speed Limit Sign -->
-                        <div class="map-overlay-limit-box" id="map-overlay-limit-box" style="display: none;">
-                            <div class="speed-limit-sign">
-                                <span id="map-overlay-limit-val">50</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="offline-map-overlay" id="map-offline-overlay">
                     <div class="offline-map-icon">📡</div>
                     <h4 style="margin-bottom: 4px;">Картата е офлайн</h4>
@@ -1656,34 +1455,11 @@
             }
         });
 
-        // Click on map to open fullscreen
+        // Click on map to open fullscreen in a new window
         const mapDiv = document.getElementById('map');
         mapDiv.addEventListener('click', (e) => {
             if (!appState.mapVisible) return;
-            
-            // Open fullscreen map on clicking tiles/map container
-            if (e.target.classList.contains('leaflet-container') || e.target.closest('.leaflet-tile-container') || e.target.id === 'map') {
-                if (!mapWrapper.classList.contains('map-fullscreen')) {
-                    mapWrapper.classList.add('map-fullscreen');
-                    setTimeout(() => {
-                        if (appState.map) {
-                            appState.map.invalidateSize();
-                        }
-                    }, 300);
-                }
-            }
-        });
-
-        // Close map fullscreen mode
-        const btnMapFullscreenBack = document.getElementById('btn-map-fullscreen-back');
-        btnMapFullscreenBack.addEventListener('click', (e) => {
-            e.stopPropagation();
-            mapWrapper.classList.remove('map-fullscreen');
-            setTimeout(() => {
-                if (appState.map) {
-                    appState.map.invalidateSize();
-                }
-            }, 300);
+            window.open('map.html', '_blank');
         });
 
         // --- INTERACTION SOUNDS ---
@@ -2073,15 +1849,10 @@
         }
 
         function setWrongWayAlert(isActive, streetName = '') {
-            const mapWrongWayBanner = document.getElementById('map-overlay-wrong-way');
             if (isActive) {
                 document.body.classList.add('wrong-way-alert');
                 wrongWayBanner.style.display = 'block';
                 wrongWayBanner.innerText = `⚠️ НАСРЕЩНО ДВИЖЕНИЕ! ${streetName ? '(' + streetName + ')' : ''} ⚠️`;
-                
-                if (mapWrongWayBanner) {
-                    mapWrongWayBanner.innerText = `⚠️ НАСРЕЩНО ДВИЖЕНИЕ! ${streetName ? '(' + streetName + ')' : ''} ⚠️`;
-                }
                 
                 wrongWayDot.className = 'status-dot warning';
                 wrongWayDot.style.backgroundColor = 'var(--accent-rose)';
@@ -2471,23 +2242,6 @@
             }
             unitValEl.innerText = appState.unit === 'kmh' ? 'км/ч' : 'mph';
             statMaxEl.innerText = displayMax;
-
-            // Update Fullscreen Map speed overlays
-            const mapSpeedValEl = document.getElementById('map-overlay-speed-val');
-            const mapSpeedUnitEl = document.getElementById('map-overlay-speed-unit');
-            if (mapSpeedValEl) mapSpeedValEl.innerText = displaySpeed;
-            if (mapSpeedUnitEl) mapSpeedUnitEl.innerText = appState.unit === 'kmh' ? 'км/ч' : 'mph';
-
-            const mapLimitBox = document.getElementById('map-overlay-limit-box');
-            const mapLimitValEl = document.getElementById('map-overlay-limit-val');
-            if (mapLimitBox && mapLimitValEl) {
-                if (appState.isSpeedAlertActive && appState.speedLimit) {
-                    mapLimitBox.style.display = 'flex';
-                    mapLimitValEl.innerText = appState.speedLimit;
-                } else {
-                    mapLimitBox.style.display = 'none';
-                }
-            }
 
             // Speed alarm check (only if wrong way alarm is NOT active, wrong way takes precedence!)
             if (!document.body.classList.contains('wrong-way-alert')) {
