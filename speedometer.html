@@ -609,6 +609,318 @@
             background: #000;
         }
 
+        /* Day Mode (Light Theme) Overrides */
+        body.day-mode {
+            --bg-dark: #f8fafc;
+            --bg-card: rgba(255, 255, 255, 0.85);
+            --border-glow: rgba(8, 145, 178, 0.15);
+            --accent-cyan: #0891b2;
+            --accent-cyan-glow: rgba(8, 145, 178, 0.3);
+            --accent-emerald: #059669;
+            --accent-emerald-glow: rgba(5, 150, 105, 0.3);
+            --accent-rose: #e11d48;
+            --accent-rose-glow: rgba(225, 29, 72, 0.3);
+            --text-light: #0f172a;
+            --text-muted: #475569;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(8, 145, 178, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.06) 0px, transparent 50%);
+        }
+
+        body.day-mode .odometer-value-box {
+            background: #e2e8f0;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        body.day-mode .odometer-value {
+            color: #0891b2;
+            text-shadow: none;
+        }
+
+        body.day-mode .odometer-card.trip .odometer-value {
+            color: #059669;
+            text-shadow: none;
+        }
+
+        body.day-mode .gauge-bg {
+            stroke: rgba(0, 0, 0, 0.06);
+        }
+
+        body.day-mode .gps-status {
+            background: rgba(255, 255, 255, 0.8);
+            border-color: rgba(0, 0, 0, 0.05);
+        }
+
+        body.day-mode .btn-group {
+            background: rgba(0, 0, 0, 0.05);
+            border-color: rgba(0, 0, 0, 0.06);
+        }
+
+        body.day-mode .btn-toggle.active {
+            color: #ffffff;
+            background: var(--accent-cyan);
+            box-shadow: 0 2px 8px rgba(8, 145, 178, 0.3);
+        }
+
+        body.day-mode .sound-toggle-btn {
+            background: rgba(0, 0, 0, 0.04);
+            border-color: rgba(0, 0, 0, 0.06);
+            color: var(--text-light);
+        }
+
+        body.day-mode .sound-toggle-btn.muted {
+            background: rgba(225, 29, 72, 0.05);
+            border-color: rgba(225, 29, 72, 0.2);
+            color: var(--accent-rose);
+        }
+
+        /* Fullscreen map layout */
+        body.fullscreen-map-active {
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        body.fullscreen-map-active .container {
+            max-width: 100% !important;
+            width: 100% !important;
+            height: 100vh !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        body.fullscreen-map-active .container > *:not(.map-section) {
+            display: none !important;
+        }
+
+        body.fullscreen-map-active .map-section {
+            width: 100% !important;
+            height: 100vh !important;
+            gap: 0 !important;
+        }
+
+        body.fullscreen-map-active .map-header {
+            display: none !important;
+        }
+
+        body.fullscreen-map-active .map-wrapper {
+            width: 100% !important;
+            height: 100vh !important;
+            border-radius: 0 !important;
+            border: none !important;
+            display: block !important;
+        }
+
+        /* Transparent Overlay to capture click only on preview mode */
+        .map-preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 999;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        body.fullscreen-map-active .map-preview-overlay {
+            display: none;
+        }
+
+        /* Map Fullscreen Controls */
+        .map-overlay-btn {
+            position: absolute;
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-radius: 16px;
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-light);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .map-overlay-btn:hover {
+            transform: translateY(-1px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .map-overlay-btn.back-btn {
+            top: 20px;
+            left: 20px;
+        }
+
+        .map-overlay-btn.theme-toggle-btn {
+            top: 20px;
+            right: 20px;
+        }
+
+        body.fullscreen-map-active .map-overlay-btn {
+            display: flex;
+        }
+
+        /* Wrong way banner on map */
+        .map-wrong-way-banner {
+            position: absolute;
+            z-index: 1001;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-rose);
+            border: 2px solid #fff;
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 16px;
+            font-weight: 800;
+            font-size: 1.05rem;
+            box-shadow: 0 8px 32px rgba(244, 63, 94, 0.6);
+            display: none;
+            white-space: nowrap;
+            animation: wrong-way-flash-map 0.4s infinite alternate;
+            text-align: center;
+        }
+
+        body.fullscreen-map-active.wrong-way-alert .map-wrong-way-banner {
+            display: block;
+        }
+
+        @keyframes wrong-way-flash-map {
+            0% { transform: translateX(-50%) scale(0.98); }
+            100% { transform: translateX(-50%) scale(1.02); }
+        }
+
+        /* Bottom HUD telemetry overlay */
+        .map-bottom-hud {
+            position: absolute;
+            z-index: 1000;
+            bottom: 24px;
+            left: 24px;
+            display: none;
+            align-items: center;
+            gap: 16px;
+            pointer-events: none;
+        }
+
+        body.fullscreen-map-active .map-bottom-hud {
+            display: flex;
+        }
+
+        .map-speed-widget {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 24px;
+            padding: 14px 28px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+            min-width: 120px;
+            pointer-events: auto;
+        }
+
+        .map-speed-val {
+            font-family: var(--font-digital);
+            font-size: 4.8rem;
+            font-weight: 900;
+            line-height: 0.9;
+            color: var(--text-light);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+            transition: color 0.2s;
+        }
+
+        .map-speed-val.digits-1 { font-size: 5rem; }
+        .map-speed-val.digits-2 { font-size: 4.5rem; }
+        .map-speed-val.digits-3 { font-size: 3.8rem; }
+
+        body.fullscreen-map-active.speed-alert .map-speed-val {
+            color: #ff3b5c !important;
+            text-shadow: 0 0 15px rgba(255, 59, 92, 0.6) !important;
+        }
+
+        body.fullscreen-map-active.wrong-way-alert .map-speed-val {
+            color: #ff3b5c !important;
+            text-shadow: 0 0 15px rgba(255, 59, 92, 0.6) !important;
+        }
+
+        .map-speed-unit {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        /* Allowed Speed Limit Sign */
+        .map-limit-widget {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
+        .map-speed-limit-sign {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 8px solid #ff3b30;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.2s ease;
+        }
+
+        body.fullscreen-map-active.speed-alert .map-speed-limit-sign {
+            animation: limit-sign-pulse 0.8s infinite alternate;
+        }
+
+        @keyframes limit-sign-pulse {
+            0% { transform: scale(1); box-shadow: 0 8px 24px rgba(255, 59, 92, 0.4); }
+            100% { transform: scale(1.1); box-shadow: 0 8px 32px rgba(255, 59, 92, 0.8); }
+        }
+
+        .map-speed-limit-sign span {
+            font-family: var(--font-digital);
+            font-size: 2.1rem;
+            font-weight: 900;
+            color: #000000;
+            line-height: 1;
+            letter-spacing: -1px;
+        }
+
+        /* Safe areas support for iOS / PWA */
+        @supports (top: env(safe-area-inset-top)) {
+            .map-overlay-btn.back-btn {
+                top: calc(20px + env(safe-area-inset-top));
+                left: calc(20px + env(safe-area-inset-left));
+            }
+            .map-overlay-btn.theme-toggle-btn {
+                top: calc(20px + env(safe-area-inset-top));
+                right: calc(20px + env(safe-area-inset-right));
+            }
+            .map-wrong-way-banner {
+                top: calc(20px + env(safe-area-inset-top));
+            }
+            .map-bottom-hud {
+                bottom: calc(24px + env(safe-area-inset-bottom));
+                left: calc(24px + env(safe-area-inset-left));
+            }
+        }
+
         .offline-map-overlay {
             position: absolute;
             top: 0;
@@ -1097,8 +1409,46 @@
                 </button>
             </div>
             
-            <div class="map-wrapper" id="map-wrapper" style="cursor: pointer;" title="Кликнете за отваряне на цял екран в нов прозорец">
+            <div class="map-wrapper" id="map-wrapper">
                 <div id="map"></div>
+                <div class="map-preview-overlay" id="map-preview-overlay" title="Кликнете за цял екран"></div>
+                
+                <!-- Floating Controls Overlays (Shown only in fullscreen mode) -->
+                <!-- Back Button -->
+                <button class="map-overlay-btn back-btn" id="map-back-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    <span>Назад</span>
+                </button>
+
+                <!-- Day/Night Mode Switch -->
+                <button class="map-overlay-btn theme-toggle-btn" id="map-theme-toggle-btn">
+                    <span id="map-theme-icon">🌙</span>
+                    <span id="map-theme-text">Нощен режим</span>
+                </button>
+
+                <!-- Flashed Alert Banner for Wrong Way Driving -->
+                <div class="map-wrong-way-banner" id="map-wrong-way-banner">
+                    ⚠️ НАСРЕЩНО ДВИЖЕНИЕ! ⚠️
+                </div>
+
+                <!-- Floating HUD telemetry info -->
+                <div class="map-bottom-hud">
+                    <!-- Speedbox widget -->
+                    <div class="map-speed-widget">
+                        <span class="map-speed-val" id="map-speed-val">0</span>
+                        <span class="map-speed-unit" id="map-speed-unit">км/ч</span>
+                    </div>
+
+                    <!-- Dynamic Road Speed Limit Sign widget -->
+                    <div class="map-limit-widget" id="map-limit-widget">
+                        <div class="map-speed-limit-sign">
+                            <span id="map-limit-val">50</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="offline-map-overlay" id="map-offline-overlay">
                     <div class="offline-map-icon">📡</div>
                     <h4 style="margin-bottom: 4px;">Картата е офлайн</h4>
@@ -1172,7 +1522,9 @@
             pathCoordinates: [],
             audioContext: null,
             isManualLimitOverride: false,
-            lastMatchedRoadId: null
+            lastMatchedRoadId: null,
+            mapMode: 'night',
+            mapTileLayer: null
         };
 
         // OSM Overpass data caching
@@ -1201,6 +1553,10 @@
         }
         if (localStorage.getItem('speedometer_muted')) {
             appState.isMuted = localStorage.getItem('speedometer_muted') === 'true';
+        }
+        appState.mapMode = localStorage.getItem('speedometer_map_mode') || 'night';
+        if (appState.mapMode === 'day') {
+            document.body.classList.add('day-mode');
         }
 
         // --- DOM ELEMENTS ---
@@ -1455,12 +1811,162 @@
             }
         });
 
-        // Click on map to open fullscreen in a new window
-        const mapDiv = document.getElementById('map');
-        mapDiv.addEventListener('click', (e) => {
-            if (!appState.mapVisible) return;
-            window.open('map.html', '_blank');
-        });
+        // Fullscreen map transition events
+        function enterFullscreenMap() {
+            document.body.classList.add('fullscreen-map-active');
+            
+            // Update button texts for theme toggle based on current mode
+            const mapThemeIcon = document.getElementById('map-theme-icon');
+            const mapThemeText = document.getElementById('map-theme-text');
+            if (appState.mapMode === 'day') {
+                if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
+                if (mapThemeText) mapThemeText.innerText = 'Дневен режим';
+            } else {
+                if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
+                if (mapThemeText) mapThemeText.innerText = 'Нощен режим';
+            }
+
+            // Force map resize check so Leaflet handles the expanded size
+            if (appState.map) {
+                setTimeout(() => {
+                    appState.map.invalidateSize();
+                }, 100);
+            }
+            
+            // Sync speedometer speed
+            updateMapOverlaySpeed();
+        }
+
+        function exitFullscreenMap() {
+            document.body.classList.remove('fullscreen-map-active');
+            
+            // Force map resize check so Leaflet handles the shrunk size
+            if (appState.map) {
+                setTimeout(() => {
+                    appState.map.invalidateSize();
+                }, 100);
+            }
+        }
+
+        function toggleMapTheme() {
+            const nextMode = appState.mapMode === 'night' ? 'day' : 'night';
+            appState.mapMode = nextMode;
+            localStorage.setItem('speedometer_map_mode', nextMode);
+
+            const mapThemeIcon = document.getElementById('map-theme-icon');
+            const mapThemeText = document.getElementById('map-theme-text');
+
+            if (nextMode === 'day') {
+                document.body.classList.add('day-mode');
+                if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
+                if (mapThemeText) mapThemeText.innerText = 'Дневен режим';
+                
+                if (appState.map) {
+                    if (appState.mapTileLayer) {
+                        appState.map.removeLayer(appState.mapTileLayer);
+                    }
+                    appState.mapTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                        maxZoom: 19
+                    }).addTo(appState.map);
+                }
+            } else {
+                document.body.classList.remove('day-mode');
+                if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
+                if (mapThemeText) mapThemeText.innerText = 'Нощен режим';
+                
+                if (appState.map) {
+                    if (appState.mapTileLayer) {
+                        appState.map.removeLayer(appState.mapTileLayer);
+                    }
+                    appState.mapTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                        maxZoom: 19
+                    }).addTo(appState.map);
+                }
+            }
+            
+            // Redraw path line or custom marker color if needed
+            updateMapPulseColor();
+        }
+
+        function updateMapPulseColor() {
+            const pulseEl = document.getElementById('map-pulse-element');
+            if (pulseEl) {
+                const isWrongWay = document.body.classList.contains('wrong-way-alert');
+                if (isWrongWay) {
+                    pulseEl.style.background = '#f43f5e';
+                    pulseEl.style.boxShadow = '0 0 12px #f43f5e';
+                } else {
+                    pulseEl.style.background = appState.mapMode === 'day' ? '#0891b2' : '#06b6d4';
+                    pulseEl.style.boxShadow = appState.mapMode === 'day' ? '0 0 10px rgba(8, 145, 178, 0.5)' : '0 0 10px #06b6d4';
+                }
+            }
+        }
+
+        function updateMapOverlaySpeed() {
+            if (!document.body.classList.contains('fullscreen-map-active')) return;
+            
+            const mapSpeedValEl = document.getElementById('map-speed-val');
+            const mapSpeedUnitEl = document.getElementById('map-speed-unit');
+            const mapLimitWidgetEl = document.getElementById('map-limit-widget');
+            const mapLimitValEl = document.getElementById('map-limit-val');
+
+            let displaySpeed = appState.currentSpeed;
+            if (appState.unit === 'mph') {
+                displaySpeed = kmhToMph(displaySpeed);
+            }
+            displaySpeed = Math.round(displaySpeed);
+
+            if (mapSpeedValEl) {
+                mapSpeedValEl.innerText = displaySpeed;
+                
+                const speedStr = displaySpeed.toString();
+                mapSpeedValEl.className = 'map-speed-val';
+                if (speedStr.length === 1) mapSpeedValEl.classList.add('digits-1');
+                else if (speedStr.length === 2) mapSpeedValEl.classList.add('digits-2');
+                else mapSpeedValEl.classList.add('digits-3');
+            }
+            
+            if (mapSpeedUnitEl) {
+                mapSpeedUnitEl.innerText = appState.unit === 'kmh' ? 'км/ч' : 'mph';
+            }
+
+            // Allowed Speed Limit sign visualization
+            if (mapLimitWidgetEl && mapLimitValEl) {
+                if (appState.isSpeedAlertActive && appState.speedLimit) {
+                    mapLimitWidgetEl.style.display = 'flex';
+                    mapLimitValEl.innerText = appState.speedLimit;
+                } else {
+                    mapLimitWidgetEl.style.display = 'none';
+                }
+            }
+        }
+
+        // Click on map preview overlay to open fullscreen map
+        const mapPreviewOverlay = document.getElementById('map-preview-overlay');
+        if (mapPreviewOverlay) {
+            mapPreviewOverlay.addEventListener('click', (e) => {
+                e.stopPropagation();
+                enterFullscreenMap();
+            });
+        }
+
+        // Back button click exits fullscreen
+        const mapBackBtn = document.getElementById('map-back-btn');
+        if (mapBackBtn) {
+            mapBackBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                exitFullscreenMap();
+            });
+        }
+
+        // Theme switch button click
+        const mapThemeToggleBtn = document.getElementById('map-theme-toggle-btn');
+        if (mapThemeToggleBtn) {
+            mapThemeToggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleMapTheme();
+            });
+        }
 
         // --- INTERACTION SOUNDS ---
         function initAudio() {
@@ -1549,8 +2055,19 @@
                 attributionControl: false
             }).setView([startLat, startLon], 15);
 
-            // Dark-themed tiles from CartoDB (breathtaking styling matching the slate app design)
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            // Map theme loading
+            appState.mapMode = localStorage.getItem('speedometer_map_mode') || 'night';
+            if (appState.mapMode === 'day') {
+                document.body.classList.add('day-mode');
+            } else {
+                document.body.classList.remove('day-mode');
+            }
+
+            const tileUrl = appState.mapMode === 'day' 
+                ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+                : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
+            appState.mapTileLayer = L.tileLayer(tileUrl, {
                 maxZoom: 19
             }).addTo(appState.map);
 
@@ -1566,13 +2083,16 @@
             // Current position pulse icon
             const customPulseIcon = L.divIcon({
                 className: 'pulse-marker',
-                html: '<div id="map-pulse-element" style="width: 16px; height: 16px; border-radius:50%; background:#06b6d4; border:3px solid #fff; box-shadow:0 0 10px #06b6d4;"></div>',
+                html: '<div id="map-pulse-element" style="width: 16px; height: 16px; border-radius:50%; background:#06b6d4; border:3px solid #fff; box-shadow:0 0 10px #06b6d4; transition: background 0.3s, box-shadow 0.3s;"></div>',
                 iconSize: [16, 16],
                 iconAnchor: [8, 8]
             });
 
             appState.mapMarker = L.marker([startLat, startLon], { icon: customPulseIcon }).addTo(appState.map);
             appState.mapInitialized = true;
+            
+            // Ensure pulse color matches loaded theme
+            updateMapPulseColor();
         }
 
         function updateMapLocation(lat, lon, isWrongWay = false) {
@@ -1588,15 +2108,15 @@
             // Pan map
             appState.map.panTo(latlng);
 
-            // Dynamically change map pulse color on wrong way
+            // Dynamically change map pulse color on wrong way or day/night mode
             const pulseEl = document.getElementById('map-pulse-element');
             if (pulseEl) {
                 if (isWrongWay) {
                     pulseEl.style.background = '#f43f5e';
                     pulseEl.style.boxShadow = '0 0 12px #f43f5e';
                 } else {
-                    pulseEl.style.background = '#06b6d4';
-                    pulseEl.style.boxShadow = '0 0 10px #06b6d4';
+                    pulseEl.style.background = appState.mapMode === 'day' ? '#0891b2' : '#06b6d4';
+                    pulseEl.style.boxShadow = appState.mapMode === 'day' ? '0 0 10px rgba(8, 145, 178, 0.5)' : '0 0 10px #06b6d4';
                 }
             }
         }
@@ -2286,6 +2806,9 @@
             let dashoffset = 518 - ((speedPercent / 100) * (518 - 173));
             gaugeCircle.style.strokeDasharray = "518 691";
             gaugeCircle.style.strokeDashoffset = dashoffset;
+
+            // Sync fullscreen map overlays
+            updateMapOverlaySpeed();
         }
 
         // Run initial UI draw
