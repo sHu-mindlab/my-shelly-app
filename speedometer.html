@@ -2,7 +2,7 @@
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>GPS Скоростомер & Одометър</title>
     
     <!-- PWA Meta Tags -->
@@ -684,14 +684,19 @@
         /* Fullscreen map layout */
         body.fullscreen-map-active {
             padding: 0 !important;
+            margin: 0 !important;
             overflow: hidden !important;
+            position: fixed !important; /* Lock scroll on iOS Safari */
+            width: 100vw !important;
+            height: 100dvh !important;
         }
 
         body.fullscreen-map-active .container {
+            display: block !important; /* Bypass flex container layout WebKit bugs */
+            position: static !important;
             max-width: 100% !important;
             width: 100% !important;
-            height: 100vh !important;
-            height: 100dvh !important;
+            height: auto !important;
             padding: 0 !important;
             margin: 0 !important;
         }
@@ -730,7 +735,7 @@
             height: 100% !important;
             border-radius: 0 !important;
             border: none !important;
-            display: block !important;
+            display: block !important; /* Force visible */
         }
 
         /* Transparent Overlay to capture click only on preview mode */
@@ -795,6 +800,31 @@
 
         body.fullscreen-map-active .map-overlay-btn {
             display: flex;
+        }
+
+        body.fullscreen-map-active .map-overlay-btn.back-btn {
+            top: calc(20px + env(safe-area-inset-top)) !important;
+            left: calc(20px + env(safe-area-inset-left)) !important;
+        }
+
+        body.fullscreen-map-active .map-overlay-btn.theme-toggle-btn {
+            top: calc(20px + env(safe-area-inset-top)) !important;
+            right: calc(20px + env(safe-area-inset-right)) !important;
+        }
+
+        /* High-contrast theme swapping for map controls (dark button when map is light, light button when map is dark) */
+        body.day-mode .map-overlay-btn {
+            background: rgba(15, 23, 42, 0.9) !important;
+            color: #f1f5f9 !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+        }
+
+        body:not(.day-mode) .map-overlay-btn {
+            background: rgba(255, 255, 255, 0.9) !important;
+            color: #0f172a !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
         }
 
         /* Wrong way banner on map */
