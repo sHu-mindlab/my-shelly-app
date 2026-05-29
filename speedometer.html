@@ -691,6 +691,7 @@
             max-width: 100% !important;
             width: 100% !important;
             height: 100vh !important;
+            height: 100dvh !important;
             padding: 0 !important;
             margin: 0 !important;
         }
@@ -700,9 +701,21 @@
         }
 
         body.fullscreen-map-active .map-section {
-            width: 100% !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
             height: 100vh !important;
-            gap: 0 !important;
+            height: 100dvh !important;
+            z-index: 9999 !important;
+            border-radius: 0 !important;
+            border: none !important;
+            background: #000 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            box-shadow: none !important;
         }
 
         body.fullscreen-map-active .map-header {
@@ -710,8 +723,11 @@
         }
 
         body.fullscreen-map-active .map-wrapper {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
             width: 100% !important;
-            height: 100vh !important;
+            height: 100% !important;
             border-radius: 0 !important;
             border: none !important;
             display: block !important;
@@ -727,7 +743,10 @@
             z-index: 999;
             cursor: pointer;
             background: rgba(0, 0, 0, 0); /* Fix for iOS Safari tap detection on transparent elements */
-            pointer-events: auto;
+            pointer-events: auto !important;
+            -webkit-user-select: auto !important;
+            user-select: auto !important;
+            -webkit-tap-highlight-color: rgba(0,0,0,0);
         }
 
         body.fullscreen-map-active .map-preview-overlay {
@@ -754,6 +773,9 @@
             cursor: pointer;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
             transition: all 0.2s ease;
+            pointer-events: auto !important;
+            -webkit-user-select: auto !important;
+            user-select: auto !important;
         }
 
         .map-overlay-btn:hover {
@@ -1431,8 +1453,8 @@
 
                 <!-- Day/Night Mode Switch -->
                 <button class="map-overlay-btn theme-toggle-btn" id="map-theme-toggle-btn">
-                    <span id="map-theme-icon">🌙</span>
-                    <span id="map-theme-text">Нощен режим</span>
+                    <span id="map-theme-icon">☀️</span>
+                    <span id="map-theme-text">Дневен режим</span>
                 </button>
 
                 <!-- Flashed Alert Banner for Wrong Way Driving -->
@@ -1822,15 +1844,15 @@
         function enterFullscreenMap() {
             document.body.classList.add('fullscreen-map-active');
             
-            // Update button texts for theme toggle based on current mode
+            // Update button texts for theme toggle based on current mode (show target mode)
             const mapThemeIcon = document.getElementById('map-theme-icon');
             const mapThemeText = document.getElementById('map-theme-text');
             if (appState.mapMode === 'day') {
-                if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
-                if (mapThemeText) mapThemeText.innerText = 'Дневен режим';
-            } else {
                 if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
                 if (mapThemeText) mapThemeText.innerText = 'Нощен режим';
+            } else {
+                if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
+                if (mapThemeText) mapThemeText.innerText = 'Дневен режим';
             }
 
             // Force map resize check so Leaflet handles the expanded size
@@ -1865,8 +1887,8 @@
 
             if (nextMode === 'day') {
                 document.body.classList.add('day-mode');
-                if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
-                if (mapThemeText) mapThemeText.innerText = 'Дневен режим';
+                if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
+                if (mapThemeText) mapThemeText.innerText = 'Нощен режим';
                 
                 if (appState.map) {
                     if (appState.mapTileLayer) {
@@ -1878,8 +1900,8 @@
                 }
             } else {
                 document.body.classList.remove('day-mode');
-                if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
-                if (mapThemeText) mapThemeText.innerText = 'Нощен режим';
+                if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
+                if (mapThemeText) mapThemeText.innerText = 'Дневен режим';
                 
                 if (appState.map) {
                     if (appState.mapTileLayer) {
@@ -1948,40 +1970,47 @@
             }
         }
 
+        // Helper to bind touch/click events reliably on mobile and desktop
+        function addTapListener(element, callback) {
+            let touched = false;
+            element.addEventListener('touchstart', (e) => {
+                touched = true;
+                e.stopPropagation();
+                callback(e);
+            }, { passive: false });
+            
+            element.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (touched) {
+                    touched = false;
+                    return;
+                }
+                callback(e);
+            });
+        }
+
         // Click/Touch on map preview overlay to open fullscreen map
         const mapPreviewOverlay = document.getElementById('map-preview-overlay');
         if (mapPreviewOverlay) {
-            const handleMapPreviewTap = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+            addTapListener(mapPreviewOverlay, () => {
                 enterFullscreenMap();
-            };
-            mapPreviewOverlay.addEventListener('click', handleMapPreviewTap);
-            mapPreviewOverlay.addEventListener('touchstart', handleMapPreviewTap, { passive: false });
+            });
         }
 
         // Back button click/touch exits fullscreen
         const mapBackBtn = document.getElementById('map-back-btn');
         if (mapBackBtn) {
-            const handleBackTap = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+            addTapListener(mapBackBtn, () => {
                 exitFullscreenMap();
-            };
-            mapBackBtn.addEventListener('click', handleBackTap);
-            mapBackBtn.addEventListener('touchstart', handleBackTap, { passive: false });
+            });
         }
 
         // Theme switch button click/touch
         const mapThemeToggleBtn = document.getElementById('map-theme-toggle-btn');
         if (mapThemeToggleBtn) {
-            const handleThemeTap = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+            addTapListener(mapThemeToggleBtn, () => {
                 toggleMapTheme();
-            };
-            mapThemeToggleBtn.addEventListener('click', handleThemeTap);
-            mapThemeToggleBtn.addEventListener('touchstart', handleThemeTap, { passive: false });
+            });
         }
 
         // --- INTERACTION SOUNDS ---
@@ -2109,11 +2138,6 @@
             
             // Ensure pulse color matches loaded theme
             updateMapPulseColor();
-
-            // Disable click propagation for map overlay elements to prevent Leaflet from intercepting touch/click events on mobile
-            if (mapBackBtn) L.DomEvent.disableClickPropagation(mapBackBtn);
-            if (mapThemeToggleBtn) L.DomEvent.disableClickPropagation(mapThemeToggleBtn);
-            if (mapPreviewOverlay) L.DomEvent.disableClickPropagation(mapPreviewOverlay);
         }
 
         function updateMapLocation(lat, lon, isWrongWay = false) {
