@@ -609,6 +609,12 @@
             background: #000;
         }
 
+        /* Enable interactions on Leaflet map elements, overriding global user-select none */
+        #map, #map * {
+            user-select: auto !important;
+            -webkit-user-select: auto !important;
+        }
+
         /* Day Mode (Light Theme) Overrides */
         body.day-mode {
             --bg-dark: #f8fafc;
@@ -720,7 +726,8 @@
             height: 100%;
             z-index: 999;
             cursor: pointer;
-            background: transparent;
+            background: rgba(0, 0, 0, 0); /* Fix for iOS Safari tap detection on transparent elements */
+            pointer-events: auto;
         }
 
         body.fullscreen-map-active .map-preview-overlay {
@@ -1941,31 +1948,40 @@
             }
         }
 
-        // Click on map preview overlay to open fullscreen map
+        // Click/Touch on map preview overlay to open fullscreen map
         const mapPreviewOverlay = document.getElementById('map-preview-overlay');
         if (mapPreviewOverlay) {
-            mapPreviewOverlay.addEventListener('click', (e) => {
+            const handleMapPreviewTap = (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 enterFullscreenMap();
-            });
+            };
+            mapPreviewOverlay.addEventListener('click', handleMapPreviewTap);
+            mapPreviewOverlay.addEventListener('touchstart', handleMapPreviewTap, { passive: false });
         }
 
-        // Back button click exits fullscreen
+        // Back button click/touch exits fullscreen
         const mapBackBtn = document.getElementById('map-back-btn');
         if (mapBackBtn) {
-            mapBackBtn.addEventListener('click', (e) => {
+            const handleBackTap = (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 exitFullscreenMap();
-            });
+            };
+            mapBackBtn.addEventListener('click', handleBackTap);
+            mapBackBtn.addEventListener('touchstart', handleBackTap, { passive: false });
         }
 
-        // Theme switch button click
+        // Theme switch button click/touch
         const mapThemeToggleBtn = document.getElementById('map-theme-toggle-btn');
         if (mapThemeToggleBtn) {
-            mapThemeToggleBtn.addEventListener('click', (e) => {
+            const handleThemeTap = (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 toggleMapTheme();
-            });
+            };
+            mapThemeToggleBtn.addEventListener('click', handleThemeTap);
+            mapThemeToggleBtn.addEventListener('touchstart', handleThemeTap, { passive: false });
         }
 
         // --- INTERACTION SOUNDS ---
@@ -2093,6 +2109,11 @@
             
             // Ensure pulse color matches loaded theme
             updateMapPulseColor();
+
+            // Disable click propagation for map overlay elements to prevent Leaflet from intercepting touch/click events on mobile
+            if (mapBackBtn) L.DomEvent.disableClickPropagation(mapBackBtn);
+            if (mapThemeToggleBtn) L.DomEvent.disableClickPropagation(mapThemeToggleBtn);
+            if (mapPreviewOverlay) L.DomEvent.disableClickPropagation(mapPreviewOverlay);
         }
 
         function updateMapLocation(lat, lon, isWrongWay = false) {
