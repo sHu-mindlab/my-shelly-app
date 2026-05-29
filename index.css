@@ -154,9 +154,14 @@ header.scrolled {
     letter-spacing: -0.5px;
 }
 
-.logo span {
+.logo svg {
     color: var(--accent-cyan);
-    text-shadow: 0 0 10px var(--accent-cyan-glow);
+    filter: drop-shadow(0 0 8px var(--accent-cyan-glow));
+    transition: var(--transition);
+}
+
+.logo:hover svg {
+    transform: rotate(360deg);
 }
 
 .nav-links {
