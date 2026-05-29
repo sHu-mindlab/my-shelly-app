@@ -615,6 +615,12 @@
             -webkit-user-select: auto !important;
         }
 
+        /* Night Mode Map Filter: Inverts baseline tiles to dark while preserving overlay colors */
+        body:not(.day-mode) .leaflet-tile {
+            -webkit-filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(90%) !important;
+            filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(90%) !important;
+        }
+
         /* Day Mode (Light Theme) Overrides */
         body.day-mode {
             --bg-dark: #f8fafc;
@@ -1920,28 +1926,10 @@
                 document.body.classList.add('day-mode');
                 if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
                 if (mapThemeText) mapThemeText.innerText = 'Нощен режим';
-                
-                if (appState.map) {
-                    if (appState.mapTileLayer) {
-                        appState.map.removeLayer(appState.mapTileLayer);
-                    }
-                    appState.mapTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                        maxZoom: 19
-                    }).addTo(appState.map);
-                }
             } else {
                 document.body.classList.remove('day-mode');
                 if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
                 if (mapThemeText) mapThemeText.innerText = 'Дневен режим';
-                
-                if (appState.map) {
-                    if (appState.mapTileLayer) {
-                        appState.map.removeLayer(appState.mapTileLayer);
-                    }
-                    appState.mapTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                        maxZoom: 19
-                    }).addTo(appState.map);
-                }
             }
             
             // Redraw path line or custom marker color if needed
@@ -2140,9 +2128,8 @@
                 document.body.classList.remove('day-mode');
             }
 
-            const tileUrl = appState.mapMode === 'day' 
-                ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-                : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+            // Always use standard OpenStreetMap tile layer (which renders one-way arrows)
+            const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
             appState.mapTileLayer = L.tileLayer(tileUrl, {
                 maxZoom: 19
