@@ -689,6 +689,7 @@
 
         /* Fullscreen map layout */
         body.fullscreen-map-active {
+            display: block !important; /* Remove flexbox container on body */
             padding: 0 !important;
             margin: 0 !important;
             overflow: hidden !important;
@@ -1883,7 +1884,10 @@
             if (appState.map) {
                 setTimeout(() => {
                     appState.map.invalidateSize();
-                }, 100);
+                    if (appState.lastLat && appState.lastLon) {
+                        appState.map.panTo([appState.lastLat, appState.lastLon]);
+                    }
+                }, 200);
             }
             
             // Sync speedometer speed
@@ -2023,10 +2027,21 @@
         // Handle window resize / orientation change to ensure map centers correctly
         window.addEventListener('resize', () => {
             if (appState.map && appState.mapInitialized && appState.mapVisible) {
+                // Immediate recalculation
                 appState.map.invalidateSize();
                 if (appState.lastLat && appState.lastLon) {
                     appState.map.panTo([appState.lastLat, appState.lastLon]);
                 }
+                
+                // Delayed recalculation to ensure iOS landscape layout transition is fully completed
+                setTimeout(() => {
+                    if (appState.map) {
+                        appState.map.invalidateSize();
+                        if (appState.lastLat && appState.lastLon) {
+                            appState.map.panTo([appState.lastLat, appState.lastLon]);
+                        }
+                    }
+                }, 350);
             }
         });
 
