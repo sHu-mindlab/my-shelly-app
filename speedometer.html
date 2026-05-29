@@ -2020,6 +2020,16 @@
             });
         }
 
+        // Handle window resize / orientation change to ensure map centers correctly
+        window.addEventListener('resize', () => {
+            if (appState.map && appState.mapInitialized && appState.mapVisible) {
+                appState.map.invalidateSize();
+                if (appState.lastLat && appState.lastLon) {
+                    appState.map.panTo([appState.lastLat, appState.lastLon]);
+                }
+            }
+        });
+
         // --- INTERACTION SOUNDS ---
         function initAudio() {
             if (!appState.audioContext) {
@@ -2148,6 +2158,9 @@
 
         function updateMapLocation(lat, lon, isWrongWay = false) {
             if (!appState.mapInitialized || !appState.mapVisible) return;
+
+            appState.lastLat = lat;
+            appState.lastLon = lon;
 
             const latlng = [lat, lon];
             appState.mapMarker.setLatLng(latlng);
