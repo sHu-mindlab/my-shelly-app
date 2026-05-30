@@ -1573,8 +1573,11 @@
                     console.warn('WakeLock error:', err.name, err.message);
                 }
             }
-            // Silent-video fallback only if the native lock did not engage
-            if (isIOS && !appState.wakeLock) playIOSWakeLockVideo();
+            // iOS: Always play the silent-video fallback in addition to native,
+            // as native wakeLock is notoriously buggy/ignored by WebKit in standalone PWA mode.
+            if (isIOS) {
+                playIOSWakeLockVideo();
+            }
         }
 
         function releaseWakeLock() {
@@ -1640,12 +1643,11 @@
             }
         });
 
-        // Request Wake Lock on first user interaction (required by browser security)
+        // Request Wake Lock on user interaction (required by browser security).
+        // We do not remove these listeners so if the OS releases the lock (e.g. call, sleep),
+        // any subsequent click/tap will seamlessly re-acquire it.
         function enableWakeLockOnInteraction() {
             requestWakeLock();
-            // Remove listeners once activated
-            window.removeEventListener('click', enableWakeLockOnInteraction);
-            window.removeEventListener('touchend', enableWakeLockOnInteraction);
         }
         window.addEventListener('click', enableWakeLockOnInteraction);
         // NOTE: use 'touchend' not 'touchstart' -- touchstart does NOT grant
