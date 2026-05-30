@@ -1553,28 +1553,81 @@
         };
 
         // --- SCREEN WAKE LOCK LOGIC ---
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
         async function requestWakeLock() {
-            if (appState.wakeLock) return; // Already active
-            try {
-                if ('wakeLock' in navigator) {
-                    appState.wakeLock = await navigator.wakeLock.request('screen');
-                    appState.wakeLock.addEventListener('release', () => {
-                        appState.wakeLock = null;
-                        console.log('Screen Wake Lock released');
-                    });
-                    console.log('Screen Wake Lock is active');
+            // Standard API
+            if (!appState.wakeLock) {
+                try {
+                    if ('wakeLock' in navigator) {
+                        appState.wakeLock = await navigator.wakeLock.request('screen');
+                        appState.wakeLock.addEventListener('release', () => {
+                            appState.wakeLock = null;
+                            console.log('Screen Wake Lock released');
+                        });
+                        console.log('Screen Wake Lock is active');
+                    }
+                } catch (err) {
+                    console.warn(`WakeLock error: ${err.name}, ${err.message}`);
                 }
-            } catch (err) {
-                console.warn(`WakeLock error: ${err.name}, ${err.message}`);
+            }
+
+            // iOS Fallback (Silent video loop)
+            if (isIOS) {
+                playIOSWakeLockVideo();
             }
         }
 
         function releaseWakeLock() {
+            // Standard API
             if (appState.wakeLock) {
                 appState.wakeLock.release().then(() => {
                     appState.wakeLock = null;
                     console.log('Screen Wake Lock released manually');
                 });
+            }
+            // iOS Fallback
+            if (isIOS) {
+                pauseIOSWakeLockVideo();
+            }
+        }
+
+        function playIOSWakeLockVideo() {
+            try {
+                let video = document.getElementById('ios-wake-lock-video');
+                if (!video) {
+                    video = document.createElement('video');
+                    video.id = 'ios-wake-lock-video';
+                    video.style.position = 'absolute';
+                    video.style.width = '1px';
+                    video.style.height = '1px';
+                    video.style.opacity = '0.01';
+                    video.style.pointerEvents = 'none';
+                    video.setAttribute('playsinline', '');
+                    video.setAttribute('loop', '');
+                    video.muted = true;
+                    // Minimal base64 silent video
+                    video.src = 'data:video/mp4;base64,AAAAIGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAAz5tb292AAAAbG12aGQAAAAA3g7G4N4OxuAAAAAAcAAAAQAAAcD6AAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEF0cmspAAAAHHRrM2QAAAAA3g7G4N4OxuAAAAACAAAAAAAAAcD6AAEAAAAAAAEAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAE1kZWEAAAA1bWRoZAAAAADeDsbgyA9h0AAAAAAAcAAAAQAAAAABc25kAAAAAAAAAAAAAAAAAAAAAAAAA2hkbHIAAAAAbWhsciBzb3VuZAAAAAAAAAAAAAAAAG1haW4Ac291bmQAAAAEbWluZgAAAA5kaW5mAAAAJGRyZWYAAAABYXJjdHlwZSB1cmwgAAAAAQAAAARzdGJsAAAAHHN0c2QAAAAAEG1wNGEAAAAAAAAAAQAAAAAAAAA0ZXNkcwAAAAADgIcAAIAAAASAgwAAAAAADwAAAAAAEAAAABUAAAABAAAABW1wNHNwdHAAAAAAAAMAAAAyYXZjMQAAAAAAAAAAAAAAAAAAAAAAAAABACgASAAAAEgAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY//8AAAAic3RzcwAAAAABAAAAAQAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAAAABhzdHNzAAAAAAEAAAABAAAAGHN0c2QAAAAAEGF2YzEAAAAAAAAAAQAAAAAAAAAYc3RjbwAAAAABAAAADAA=';
+                    document.body.appendChild(video);
+                }
+                
+                if (video.paused) {
+                    video.play().then(() => {
+                        console.log('iOS Wake Lock video started playing');
+                    }).catch(e => {
+                        console.warn('iOS Wake Lock video failed to play:', e);
+                    });
+                }
+            } catch (err) {
+                console.warn('iOS Wake Lock video error:', err);
+            }
+        }
+
+        function pauseIOSWakeLockVideo() {
+            const video = document.getElementById('ios-wake-lock-video');
+            if (video && !video.paused) {
+                video.pause();
+                console.log('iOS Wake Lock video paused');
             }
         }
 
