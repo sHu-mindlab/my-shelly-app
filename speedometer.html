@@ -2843,10 +2843,10 @@
                 );
 
                 let exitStationary = false;
-                if (speedKmh > 3.5) {
+                if (speedKmh > 6.0) {
                     exitStationary = true;
-                } else if (distToAnchor >= 12) {
-                    // Require at least 2 points in recentPoints to be outside 12m to filter single noisy coordinates
+                } else if (distToAnchor >= 18) {
+                    // Require at least 2 points in recentPoints to be outside 18m to filter single noisy coordinates
                     let outsidePoints = appState.recentPoints.filter(p => {
                         let d = calculateHaversineDistance(
                             appState.stationaryAnchor.lat,
@@ -2854,7 +2854,7 @@
                             p.lat,
                             p.lon
                         );
-                        return d >= 12;
+                        return d >= 18;
                     });
                     if (outsidePoints.length >= 2) {
                         exitStationary = true;
