@@ -1666,10 +1666,13 @@
             requestWakeLock();
             // Remove listeners once activated
             window.removeEventListener('click', enableWakeLockOnInteraction);
-            window.removeEventListener('touchstart', enableWakeLockOnInteraction);
+            window.removeEventListener('touchend', enableWakeLockOnInteraction);
         }
         window.addEventListener('click', enableWakeLockOnInteraction);
-        window.addEventListener('touchstart', enableWakeLockOnInteraction);
+        // NOTE: use 'touchend' not 'touchstart' -- touchstart does NOT grant
+        // user activation, so navigator.wakeLock.request() is rejected with
+        // NotAllowedError: Permission was denied. touchend/click do grant it.
+        window.addEventListener('touchend', enableWakeLockOnInteraction);
         // Show the status badge immediately so we can confirm the new code loaded
         if (document.body) { renderWakeStatus(); } else { window.addEventListener('DOMContentLoaded', renderWakeStatus); }
 
