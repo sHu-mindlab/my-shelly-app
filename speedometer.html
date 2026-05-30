@@ -1580,7 +1580,8 @@
             lastMatchedRoadId: null,
             mapMode: 'night',
             mapTileLayer: null,
-            wakeLock: null
+            wakeLock: null,
+            consecutiveJumps: 0
         };
 
         // OSM Overpass data caching
@@ -2204,10 +2205,14 @@
         function updateMapLocation(lat, lon, isWrongWay = false) {
             if (!appState.mapInitialized || !appState.mapVisible) return;
 
-            appState.lastLat = lat;
-            appState.lastLon = lon;
+            const snapped = snapToRoad(lat, lon);
+            const displayLat = snapped.lat;
+            const displayLon = snapped.lon;
 
-            const latlng = [lat, lon];
+            appState.lastLat = displayLat;
+            appState.lastLon = displayLon;
+
+            const latlng = [displayLat, displayLon];
             appState.mapMarker.setLatLng(latlng);
             
             // Push coords to path
@@ -2387,6 +2392,80 @@
             const dx = x - xx;
             const dy = y - yy;
             return Math.sqrt(dx * dx + dy * dy); // in meters
+        }
+
+        // Returns the closest point {lat, lon, distance} on segment (lat1, lon1) - (lat2, lon2)
+        function getClosestPointOnSegment(lat, lon, lat1, lon1, lat2, lon2) {
+            const y = lat * 111111;
+            const x = lon * 111111 * Math.cos(lat * Math.PI / 180);
+            const y1 = lat1 * 111111;
+            const x1 = lon1 * 111111 * Math.cos(lat1 * Math.PI / 180);
+            const y2 = lat2 * 111111;
+            const x2 = lon2 * 111111 * Math.cos(lat2 * Math.PI / 180);
+
+            const A = x - x1;
+            const B = y - y1;
+            const C = x2 - x1;
+            const D = y2 - y1;
+
+            const dot = A * C + B * D;
+            const len_sq = C * C + D * D;
+            let param = -1;
+            if (len_sq !== 0) param = dot / len_sq;
+
+            let xx, yy;
+
+            if (param < 0) {
+                xx = x1;
+                yy = y1;
+            } else if (param > 1) {
+                xx = x2;
+                yy = y2;
+            } else {
+                xx = x1 + param * C;
+                yy = y1 + param * D;
+            }
+
+            const dx = x - xx;
+            const dy = y - yy;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            const projectedLat = yy / 111111;
+            const projectedLon = xx / (111111 * Math.cos(projectedLat * Math.PI / 180));
+
+            return { lat: projectedLat, lon: projectedLon, distance: distance };
+        }
+
+        // Snap current GPS position to the nearest road segment in osmCache
+        function snapToRoad(lat, lon) {
+            if (!osmCache.roads || osmCache.roads.length === 0) {
+                return { lat, lon, snapped: false };
+            }
+
+            let minDistance = Infinity;
+            let snappedPoint = { lat, lon };
+
+            for (const road of osmCache.roads) {
+                if (!road.geometry || road.geometry.length < 2) continue;
+                
+                for (let i = 0; i < road.geometry.length - 1; i++) {
+                    const p1 = road.geometry[i];
+                    const p2 = road.geometry[i+1];
+                    
+                    const closest = getClosestPointOnSegment(lat, lon, p1.lat, p1.lon, p2.lat, p2.lon);
+                    if (closest.distance < minDistance) {
+                        minDistance = closest.distance;
+                        snappedPoint = { lat: closest.lat, lon: closest.lon };
+                    }
+                }
+            }
+
+            // Snapping threshold: 22 meters
+            if (minDistance < 22) {
+                return { lat: snappedPoint.lat, lon: snappedPoint.lon, snapped: true };
+            }
+
+            return { lat, lon, snapped: false };
         }
 
         // Haversine formula to compute distance in meters
@@ -2633,6 +2712,28 @@
             // Filter bad signal
             if (accuracy > 35) {
                 return; // Ignore inaccurate coordinates
+            }
+
+            // GPS jump filter (outliers): ignore sudden single coordinates that jump far away
+            if (appState.lastPosition) {
+                let timeDiff = (position.timestamp - appState.lastPosition.timestamp) / 1000;
+                if (timeDiff > 0) {
+                    let prevLat = appState.lastPosition.coords.latitude;
+                    let prevLon = appState.lastPosition.coords.longitude;
+                    let distMeters = calculateHaversineDistance(prevLat, prevLon, lat, lon);
+                    let speedFromDist = (distMeters / timeDiff) * 3.6;
+
+                    // If speed is > 160 km/h and distance is > 50m, it's a suspicious jump
+                    if (speedFromDist > 160 && distMeters > 50) {
+                        appState.consecutiveJumps = (appState.consecutiveJumps || 0) + 1;
+                        if (appState.consecutiveJumps < 3) {
+                            console.warn("Ignored GPS jump:", distMeters, "meters in", timeDiff, "seconds.");
+                            return; // Ignore this point
+                        }
+                    } else {
+                        appState.consecutiveJumps = 0;
+                    }
+                }
             }
 
             // Parse Speed
