@@ -1478,8 +1478,9 @@
             </div>
             <p class="setting-desc" style="margin-bottom: 8px;">Активирайте симулация на стандартно пътуване или симулирайте тест за еднопосочна улица.</p>
             <div style="display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap;">
-                <button class="sim-btn" id="btn-sim-toggle" style="flex: 1; min-width: 140px;">Стартирай Симулация</button>
-                <button class="sim-btn" id="btn-sim-wrongway" style="flex: 1; min-width: 140px; background: rgba(244,63,94,0.1); border-color: rgba(244,63,94,0.25); color: var(--accent-rose);">Тест Насрещно</button>
+                <button class="sim-btn" id="btn-sim-toggle" style="flex: 1; min-width: 120px;">Стартирай Симулация</button>
+                <button class="sim-btn" id="btn-sim-wrongway" style="flex: 1; min-width: 120px; background: rgba(244,63,94,0.1); border-color: rgba(244,63,94,0.25); color: var(--accent-rose);">Тест Насрещно</button>
+                <button class="sim-btn" id="btn-sim-drift" style="flex: 1; min-width: 120px; background: rgba(234,179,8,0.1); border-color: rgba(234,179,8,0.25); color: #eab308;">Тест Блуждаене</button>
             </div>
             
             <div class="sim-controls" id="sim-controls">
@@ -1541,7 +1542,10 @@
             mapTileLayer: null,
             wakeLock: null,
             consecutiveJumps: 0,
-            autoCenter: true
+            autoCenter: true,
+            isStationary: false,
+            stationaryAnchor: null, // { lat, lon, timestamp }
+            recentPoints: []        // array of { lat, lon, timestamp, speedKmh }
         };
 
         // OSM Overpass data caching
@@ -1712,6 +1716,7 @@
         
         const btnSimToggle = document.getElementById('btn-sim-toggle');
         const btnSimWrongWay = document.getElementById('btn-sim-wrongway');
+        const btnSimDrift = document.getElementById('btn-sim-drift');
         const simControls = document.getElementById('sim-controls');
         const simSpeedSlider = document.getElementById('sim-speed-slider');
         const simSpeedVal = document.getElementById('sim-speed-val');
@@ -2261,8 +2266,17 @@
             const latlng = [displayLat, displayLon];
             appState.mapMarker.setLatLng(latlng);
             
-            // Push coords to path
-            appState.pathCoordinates.push(latlng);
+            // Push coords to path if it is different from the last coordinate (prevents duplicates when stationary)
+            let shouldPush = true;
+            if (appState.pathCoordinates.length > 0) {
+                const last = appState.pathCoordinates[appState.pathCoordinates.length - 1];
+                if (last[0] === displayLat && last[1] === displayLon) {
+                    shouldPush = false;
+                }
+            }
+            if (shouldPush) {
+                appState.pathCoordinates.push(latlng);
+            }
 
             // Limit the tail to approx 100m of cumulative distance
             let totalDist = 0;
@@ -2807,13 +2821,109 @@
                 speedKmh = 0;
             }
 
+            // --- STATIONARY FILTER (GPS DRIFT MITIGATION) ---
+            let now = position.timestamp || Date.now();
+            appState.recentPoints.push({
+                lat: lat,
+                lon: lon,
+                timestamp: now,
+                speedKmh: speedKmh
+            });
+            // Keep only points from the last 15 seconds
+            appState.recentPoints = appState.recentPoints.filter(p => now - p.timestamp <= 15000);
+
+            let hadAnchor = null;
+
+            if (appState.isStationary) {
+                let distToAnchor = calculateHaversineDistance(
+                    appState.stationaryAnchor.lat,
+                    appState.stationaryAnchor.lon,
+                    lat,
+                    lon
+                );
+
+                let exitStationary = false;
+                if (speedKmh > 3.5) {
+                    exitStationary = true;
+                } else if (distToAnchor >= 12) {
+                    // Require at least 2 points in recentPoints to be outside 12m to filter single noisy coordinates
+                    let outsidePoints = appState.recentPoints.filter(p => {
+                        let d = calculateHaversineDistance(
+                            appState.stationaryAnchor.lat,
+                            appState.stationaryAnchor.lon,
+                            p.lat,
+                            p.lon
+                        );
+                        return d >= 12;
+                    });
+                    if (outsidePoints.length >= 2) {
+                        exitStationary = true;
+                    }
+                }
+
+                if (exitStationary) {
+                    hadAnchor = appState.stationaryAnchor;
+                    appState.isStationary = false;
+                    appState.stationaryAnchor = null;
+                    console.log("Exited stationary state. Resuming tracking.");
+                } else {
+                    // Force speed to 0 and snap to anchor coordinates
+                    speedKmh = 0;
+                    lat = appState.stationaryAnchor.lat;
+                    lon = appState.stationaryAnchor.lon;
+                }
+            } else {
+                if (appState.recentPoints.length >= 2) {
+                    let firstPt = appState.recentPoints[0];
+                    let lastPt = appState.recentPoints[appState.recentPoints.length - 1];
+                    let timeSpan = (lastPt.timestamp - firstPt.timestamp) / 1000;
+
+                    if (timeSpan >= 8) {
+                        let maxDist = 0;
+                        for (let pt of appState.recentPoints) {
+                            let d = calculateHaversineDistance(pt.lat, pt.lon, lat, lon);
+                            if (d > maxDist) maxDist = d;
+                        }
+
+                        let allSpeedsLow = appState.recentPoints.every(p => p.speedKmh < 1.8);
+
+                        if (maxDist < 10 || allSpeedsLow) {
+                            let sumLat = 0, sumLon = 0;
+                            appState.recentPoints.forEach(p => {
+                                sumLat += p.lat;
+                                sumLon += p.lon;
+                            });
+                            appState.isStationary = true;
+                            appState.stationaryAnchor = {
+                                lat: sumLat / appState.recentPoints.length,
+                                lon: sumLon / appState.recentPoints.length,
+                                timestamp: now
+                            };
+                            console.log("Entered stationary state. Anchor set to:", appState.stationaryAnchor);
+
+                            speedKmh = 0;
+                            lat = appState.stationaryAnchor.lat;
+                            lon = appState.stationaryAnchor.lon;
+                        }
+                    }
+                }
+            }
+
             appState.currentSpeed = speedKmh;
 
             // Process trip and total distance
             if (appState.lastPosition && speedKmh > 0) {
+                let prevLat = appState.lastPosition.coords.latitude;
+                let prevLon = appState.lastPosition.coords.longitude;
+
+                if (hadAnchor) {
+                    prevLat = hadAnchor.lat;
+                    prevLon = hadAnchor.lon;
+                }
+
                 let distMeters = calculateHaversineDistance(
-                    appState.lastPosition.coords.latitude,
-                    appState.lastPosition.coords.longitude,
+                    prevLat,
+                    prevLon,
                     lat,
                     lon
                 );
@@ -2987,17 +3097,95 @@
             clearInterval(appState.simTimer);
             appState.isSimulating = false;
             appState.isWrongWaySim = false;
+            appState.isDriftSim = false;
 
             btnSimToggle.innerText = 'Стартирай Симулация';
             btnSimToggle.classList.remove('active');
+            btnSimDrift.innerText = 'Тест Блуждаене';
+            btnSimDrift.classList.remove('active');
             simControls.classList.remove('visible');
             
             appState.currentSpeed = 0;
             appState.lastPosition = null;
+            appState.recentPoints = [];
+            appState.isStationary = false;
+            appState.stationaryAnchor = null;
             setWrongWayAlert(false);
 
             // Restart real tracking
             startTracking();
+        }
+
+        let driftBaseLat = 42.6685;
+        let driftBaseLon = 23.3106;
+
+        function startDriftSimulation() {
+            requestWakeLock();
+            if (appState.watchId) {
+                navigator.geolocation.clearWatch(appState.watchId);
+            }
+            if (appState.simTimer) {
+                clearInterval(appState.simTimer);
+            }
+
+            appState.isSimulating = true;
+            appState.isDriftSim = true;
+            appState.isWrongWaySim = false;
+
+            btnSimDrift.innerText = 'Спри Блуждаене';
+            btnSimDrift.classList.add('active');
+            gpsDot.className = 'status-dot simulating';
+            gpsText.innerText = 'Тест Блуждаене';
+            statAccuracyEl.innerText = '±15м';
+
+            // Clear previous states
+            appState.recentPoints = [];
+            appState.isStationary = false;
+            appState.stationaryAnchor = null;
+
+            driftBaseLat = 42.6685;
+            driftBaseLon = 23.3106;
+
+            appState.lastPosition = {
+                coords: { latitude: driftBaseLat, longitude: driftBaseLon },
+                timestamp: Date.now()
+            };
+
+            if (!appState.mapVisible) {
+                btnMapToggle.click();
+            }
+
+            setTimeout(() => {
+                updateMapLocation(driftBaseLat, driftBaseLon);
+            }, 300);
+
+            appState.simTimer = setInterval(runDriftSimulationStep, 1000);
+        }
+
+        function runDriftSimulationStep() {
+            // Generate coordinates within a 10m range (~0.00007 degrees jitter)
+            let maxJitterDeg = 0.00007; 
+            let jitterLat = (Math.random() - 0.5) * 2 * maxJitterDeg;
+            let jitterLon = (Math.random() - 0.5) * 2 * maxJitterDeg / Math.cos(driftBaseLat * Math.PI / 180);
+
+            let noisyLat = driftBaseLat + jitterLat;
+            let noisyLon = driftBaseLon + jitterLon;
+
+            // Fluctuate raw speed between 0 and 2.5 km/h
+            let rawSpeedMs = Math.random() < 0.4 ? 0 : Math.random() * 0.7;
+
+            let fakePosition = {
+                coords: {
+                    latitude: noisyLat,
+                    longitude: noisyLon,
+                    speed: rawSpeedMs,
+                    accuracy: 15,
+                    heading: Math.random() * 360
+                },
+                timestamp: Date.now()
+            };
+
+            handleLocationUpdate(fakePosition);
         }
 
         function runSimulationStep() {
@@ -3089,6 +3277,17 @@
 
         btnSimWrongWay.addEventListener('click', () => {
             startSimulationCommon(true);
+        });
+
+        btnSimDrift.addEventListener('click', () => {
+            if (appState.isSimulating && appState.isDriftSim) {
+                stopSimulation();
+            } else {
+                if (appState.isSimulating) {
+                    stopSimulation();
+                }
+                startDriftSimulation();
+            }
         });
 
         simSpeedSlider.addEventListener('input', (e) => {
