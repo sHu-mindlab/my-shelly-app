@@ -1571,12 +1571,9 @@
         }
 
         async function requestWakeLock() {
-            // Play the iOS silent-video fallback FIRST, synchronously, so the
-            // video.play() call stays inside the user gesture (the await below
-            // would otherwise break the gesture and iOS could block playback).
-            if (isIOS) playIOSWakeLockVideo();
-
-            // Standard Screen Wake Lock API (iOS 16.4+, Android Chrome, ...)
+            // Native FIRST: navigator.wakeLock.request() needs the user
+            // activation from the tap. Calling video.play() before it consumes
+            // that activation, which makes the request fail with NotAllowedError.
             if (!appState.wakeLock && 'wakeLock' in navigator) {
                 try {
                     appState.wakeLock = await navigator.wakeLock.request('screen');
@@ -1587,11 +1584,13 @@
                         renderWakeStatus();
                     });
                 } catch (err) {
-                    wlNativeState = 'ERR ' + err.name;
+                    wlNativeState = 'ERR ' + err.name + ': ' + (err.message || '');
                 }
             } else if (!('wakeLock' in navigator)) {
                 wlNativeState = 'no API (iOS<16.4)';
             }
+            // Silent-video fallback only if the native lock did not engage
+            if (isIOS && !appState.wakeLock) playIOSWakeLockVideo();
             renderWakeStatus();
         }
 
