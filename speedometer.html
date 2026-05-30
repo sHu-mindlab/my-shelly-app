@@ -821,6 +821,18 @@
             right: calc(20px + env(safe-area-inset-right)) !important;
         }
 
+        .map-overlay-btn.recenter-btn {
+            bottom: 24px;
+            right: 24px;
+            display: none;
+        }
+
+        body.fullscreen-map-active .map-overlay-btn.recenter-btn.visible {
+            display: flex;
+            bottom: calc(24px + env(safe-area-inset-bottom)) !important;
+            right: calc(24px + env(safe-area-inset-right)) !important;
+        }
+
 
 
         /* Wrong way banner on map */
@@ -1483,6 +1495,19 @@
                     <span id="map-theme-text">Дневен режим</span>
                 </button>
 
+                <!-- Recenter Button -->
+                <button class="map-overlay-btn recenter-btn" id="map-recenter-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <line x1="12" y1="1" x2="12" y2="4"></line>
+                        <line x1="12" y1="20" x2="12" y2="23"></line>
+                        <line x1="1" y1="12" x2="4" y2="12"></line>
+                        <line x1="20" y1="12" x2="23" y2="12"></line>
+                    </svg>
+                    <span>Центрирай</span>
+                </button>
+
                 <!-- Flashed Alert Banner for Wrong Way Driving -->
                 <div class="map-wrong-way-banner" id="map-wrong-way-banner">
                     ⚠️ НАСРЕЩНО ДВИЖЕНИЕ! ⚠️
@@ -1581,7 +1606,8 @@
             mapMode: 'night',
             mapTileLayer: null,
             wakeLock: null,
-            consecutiveJumps: 0
+            consecutiveJumps: 0,
+            autoCenter: true
         };
 
         // OSM Overpass data caching
@@ -1681,6 +1707,7 @@
         const btnMapToggle = document.getElementById('btn-map-toggle');
         const mapWrapper = document.getElementById('map-wrapper');
         const mapOfflineOverlay = document.getElementById('map-offline-overlay');
+        const btnMapRecenter = document.getElementById('map-recenter-btn');
         
         const btnSimToggle = document.getElementById('btn-sim-toggle');
         const btnSimWrongWay = document.getElementById('btn-sim-wrongway');
@@ -2200,6 +2227,16 @@
             
             // Ensure pulse color matches loaded theme
             updateMapPulseColor();
+
+            // Recenter event listeners for manual map movements
+            appState.map.on('dragstart', () => {
+                appState.autoCenter = false;
+                if (btnMapRecenter) btnMapRecenter.classList.add('visible');
+            });
+            appState.map.on('zoomstart', () => {
+                appState.autoCenter = false;
+                if (btnMapRecenter) btnMapRecenter.classList.add('visible');
+            });
         }
 
         function updateMapLocation(lat, lon, isWrongWay = false) {
@@ -2237,10 +2274,12 @@
 
             appState.mapPath.setLatLngs(appState.pathCoordinates);
             
-            // Pan map
-            appState.map.panTo(latlng);
+            // Pan map only if autoCenter is active
+            if (appState.autoCenter) {
+                appState.map.panTo(latlng);
+            }
 
-            // Rotate map based on heading
+            // Rotate map based on heading only if autoCenter is active
             let heading = null;
             if (appState.lastPosition && appState.lastPosition.coords) {
                 heading = appState.lastPosition.coords.heading;
@@ -2248,9 +2287,9 @@
 
             const mapContainer = document.getElementById('map');
             if (mapContainer) {
-                if (heading !== null && !isNaN(heading) && appState.currentSpeed > 5) {
+                if (appState.autoCenter && heading !== null && !isNaN(heading) && appState.currentSpeed > 5) {
                     mapContainer.style.transform = `rotate(${-heading}deg) scale(1.5)`;
-                } else if (appState.currentSpeed <= 2) {
+                } else if (!appState.autoCenter || appState.currentSpeed <= 2) {
                     mapContainer.style.transform = 'rotate(0deg) scale(1)';
                 }
             }
@@ -3022,6 +3061,14 @@
             updateUI();
             updateMapLocation(simLat, simLon, document.body.classList.contains('wrong-way-alert'));
         }
+
+        btnMapRecenter.addEventListener('click', () => {
+            appState.autoCenter = true;
+            if (appState.lastLat && appState.lastLon) {
+                appState.map.setView([appState.lastLat, appState.lastLon], 18);
+            }
+            btnMapRecenter.classList.remove('visible');
+        });
 
         btnSimToggle.addEventListener('click', () => {
             if (appState.isSimulating) {
