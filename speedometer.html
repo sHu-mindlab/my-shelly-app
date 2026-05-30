@@ -1555,43 +1555,22 @@
         // --- SCREEN WAKE LOCK LOGIC ---
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-        // --- TEMP DEBUG: on-screen wake-lock status badge ---
-        let wlNativeState = '-', wlVideoState = '-';
-        function renderWakeStatus() {
-            let b = document.getElementById('wake-status-badge');
-            if (!b) {
-                if (!document.body) { return; }
-                b = document.createElement('div');
-                b.id = 'wake-status-badge';
-                b.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:99999;font:11px/1.35 monospace;background:rgba(0,0,0,.72);color:#0ff;padding:4px 7px;border-radius:6px;max-width:92vw;pointer-events:none;white-space:pre-wrap;';
-                document.body.appendChild(b);
-            }
-            const standalone = ((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone) ? 'PWA' : 'browser';
-            b.textContent = 'native: ' + wlNativeState + '\nvideo: ' + wlVideoState + '\n' + standalone + ' | API:' + (('wakeLock' in navigator) ? 'yes' : 'no');
-        }
-
         async function requestWakeLock() {
             // Native FIRST: navigator.wakeLock.request() needs the user
-            // activation from the tap. Calling video.play() before it consumes
-            // that activation, which makes the request fail with NotAllowedError.
+            // activation from the tap, and must run before video.play(), which
+            // would otherwise consume that activation.
             if (!appState.wakeLock && 'wakeLock' in navigator) {
                 try {
                     appState.wakeLock = await navigator.wakeLock.request('screen');
-                    wlNativeState = 'ACTIVE';
                     appState.wakeLock.addEventListener('release', () => {
                         appState.wakeLock = null;
-                        wlNativeState = 'released';
-                        renderWakeStatus();
                     });
                 } catch (err) {
-                    wlNativeState = 'ERR ' + err.name + ': ' + (err.message || '');
+                    console.warn('WakeLock error:', err.name, err.message);
                 }
-            } else if (!('wakeLock' in navigator)) {
-                wlNativeState = 'no API (iOS<16.4)';
             }
             // Silent-video fallback only if the native lock did not engage
             if (isIOS && !appState.wakeLock) playIOSWakeLockVideo();
-            renderWakeStatus();
         }
 
         function releaseWakeLock() {
@@ -1634,12 +1613,8 @@
                 }
                 
                 if (video.paused) {
-                    video.play().then(() => {
-                        wlVideoState = 'playing';
-                        renderWakeStatus();
-                    }).catch(e => {
-                        wlVideoState = 'play ERR ' + ((e && e.name) ? e.name : e);
-                        renderWakeStatus();
+                    video.play().catch(e => {
+                        console.warn('iOS Wake Lock video failed to play:', e);
                     });
                 }
             } catch (err) {
@@ -1673,8 +1648,6 @@
         // user activation, so navigator.wakeLock.request() is rejected with
         // NotAllowedError: Permission was denied. touchend/click do grant it.
         window.addEventListener('touchend', enableWakeLockOnInteraction);
-        // Show the status badge immediately so we can confirm the new code loaded
-        if (document.body) { renderWakeStatus(); } else { window.addEventListener('DOMContentLoaded', renderWakeStatus); }
 
         // Load values from LocalStorage
         if (localStorage.getItem('speedometer_total_distance')) {
