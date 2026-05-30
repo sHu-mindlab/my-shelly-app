@@ -607,6 +607,8 @@
             width: 100%;
             height: 100%;
             background: #000;
+            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            transform-origin: center center;
         }
 
         /* Enable interactions on Leaflet map elements, overriding global user-select none */
@@ -1577,7 +1579,8 @@
             isManualLimitOverride: false,
             lastMatchedRoadId: null,
             mapMode: 'night',
-            mapTileLayer: null
+            mapTileLayer: null,
+            wakeLock: null
         };
 
         // OSM Overpass data caching
@@ -1587,6 +1590,33 @@
             roads: [],
             lastFetchTime: 0
         };
+
+        // --- SCREEN WAKE LOCK LOGIC ---
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    appState.wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Screen Wake Lock is active');
+                }
+            } catch (err) {
+                console.warn(`WakeLock error: ${err.name}, ${err.message}`);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (appState.wakeLock) {
+                appState.wakeLock.release().then(() => {
+                    appState.wakeLock = null;
+                    console.log('Screen Wake Lock released');
+                });
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (appState.wakeLock !== null && document.visibilityState === 'visible') {
+                requestWakeLock();
+            }
+        });
 
         // Load values from LocalStorage
         if (localStorage.getItem('speedometer_total_distance')) {
@@ -2130,7 +2160,7 @@
             appState.map = L.map('map', {
                 zoomControl: false,
                 attributionControl: false
-            }).setView([startLat, startLon], 15);
+            }).setView([startLat, startLon], 18);
 
             // Map theme loading
             appState.mapMode = localStorage.getItem('speedometer_map_mode') || 'night';
@@ -2204,6 +2234,21 @@
             
             // Pan map
             appState.map.panTo(latlng);
+
+            // Rotate map based on heading
+            let heading = null;
+            if (appState.lastPosition && appState.lastPosition.coords) {
+                heading = appState.lastPosition.coords.heading;
+            }
+
+            const mapContainer = document.getElementById('map');
+            if (mapContainer) {
+                if (heading !== null && !isNaN(heading) && appState.currentSpeed > 5) {
+                    mapContainer.style.transform = `rotate(${-heading}deg) scale(1.5)`;
+                } else if (appState.currentSpeed <= 2) {
+                    mapContainer.style.transform = 'rotate(0deg) scale(1)';
+                }
+            }
 
             // Dynamically change map pulse color on wrong way or day/night mode
             const pulseEl = document.getElementById('map-pulse-element');
@@ -2687,6 +2732,7 @@
 
         // Watch Position Setup
         function startTracking() {
+            requestWakeLock();
             if ("geolocation" in navigator) {
                 appState.watchId = navigator.geolocation.watchPosition(
                     handleLocationUpdate,
@@ -2708,6 +2754,7 @@
         let simLon = 23.3219;
 
         function startSimulationCommon(isWrongWayTest = false) {
+            requestWakeLock();
             // Cancel real GPS
             if (appState.watchId) {
                 navigator.geolocation.clearWatch(appState.watchId);
@@ -2845,13 +2892,17 @@
                 }
             }
 
+            let simHeading = (appState.simRouteAngle * 180 / Math.PI) % 360;
+            if (simHeading < 0) simHeading += 360;
+
             // Fake update position structure
             let fakePosition = {
                 coords: {
                     latitude: simLat,
                     longitude: simLon,
                     speed: speedKmh / 3.6,
-                    accuracy: 3
+                    accuracy: 3,
+                    heading: simHeading
                 },
                 timestamp: Date.now()
             };
