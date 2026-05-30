@@ -618,75 +618,9 @@
         }
 
         /* Night Mode Map Filter: Inverts baseline tiles to dark while preserving overlay colors */
-        body:not(.day-mode) .leaflet-tile {
+        #map:not(.day-mode) .leaflet-tile {
             -webkit-filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(90%) !important;
             filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(90%) !important;
-        }
-
-        /* Day Mode (Light Theme) Overrides */
-        body.day-mode {
-            --bg-dark: #f8fafc;
-            --bg-card: rgba(255, 255, 255, 0.85);
-            --border-glow: rgba(8, 145, 178, 0.15);
-            --accent-cyan: #0891b2;
-            --accent-cyan-glow: rgba(8, 145, 178, 0.3);
-            --accent-emerald: #059669;
-            --accent-emerald-glow: rgba(5, 150, 105, 0.3);
-            --accent-rose: #e11d48;
-            --accent-rose-glow: rgba(225, 29, 72, 0.3);
-            --text-light: #0f172a;
-            --text-muted: #475569;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(8, 145, 178, 0.08) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.06) 0px, transparent 50%);
-        }
-
-        body.day-mode .odometer-value-box {
-            background: #e2e8f0;
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
-        }
-
-        body.day-mode .odometer-value {
-            color: #0891b2;
-            text-shadow: none;
-        }
-
-        body.day-mode .odometer-card.trip .odometer-value {
-            color: #059669;
-            text-shadow: none;
-        }
-
-        body.day-mode .gauge-bg {
-            stroke: rgba(0, 0, 0, 0.06);
-        }
-
-        body.day-mode .gps-status {
-            background: rgba(255, 255, 255, 0.8);
-            border-color: rgba(0, 0, 0, 0.05);
-        }
-
-        body.day-mode .btn-group {
-            background: rgba(0, 0, 0, 0.05);
-            border-color: rgba(0, 0, 0, 0.06);
-        }
-
-        body.day-mode .btn-toggle.active {
-            color: #ffffff;
-            background: var(--accent-cyan);
-            box-shadow: 0 2px 8px rgba(8, 145, 178, 0.3);
-        }
-
-        body.day-mode .sound-toggle-btn {
-            background: rgba(0, 0, 0, 0.04);
-            border-color: rgba(0, 0, 0, 0.06);
-            color: var(--text-light);
-        }
-
-        body.day-mode .sound-toggle-btn.muted {
-            background: rgba(225, 29, 72, 0.05);
-            border-color: rgba(225, 29, 72, 0.2);
-            color: var(--accent-rose);
         }
 
         /* Fullscreen map layout */
@@ -1665,9 +1599,6 @@
             appState.isMuted = localStorage.getItem('speedometer_muted') === 'true';
         }
         appState.mapMode = localStorage.getItem('speedometer_map_mode') || 'night';
-        if (appState.mapMode === 'day') {
-            document.body.classList.add('day-mode');
-        }
 
         // --- DOM ELEMENTS ---
         const speedValEl = document.getElementById('speed-val');
@@ -1970,13 +1901,14 @@
 
             const mapThemeIcon = document.getElementById('map-theme-icon');
             const mapThemeText = document.getElementById('map-theme-text');
+            const mapEl = document.getElementById('map');
 
             if (nextMode === 'day') {
-                document.body.classList.add('day-mode');
+                if (mapEl) mapEl.classList.add('day-mode');
                 if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
                 if (mapThemeText) mapThemeText.innerText = 'Нощен режим';
             } else {
-                document.body.classList.remove('day-mode');
+                if (mapEl) mapEl.classList.remove('day-mode');
                 if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
                 if (mapThemeText) mapThemeText.innerText = 'Дневен режим';
             }
@@ -2192,10 +2124,17 @@
 
             // Map theme loading
             appState.mapMode = localStorage.getItem('speedometer_map_mode') || 'night';
+            const mapEl = document.getElementById('map');
+            const mapThemeIcon = document.getElementById('map-theme-icon');
+            const mapThemeText = document.getElementById('map-theme-text');
             if (appState.mapMode === 'day') {
-                document.body.classList.add('day-mode');
+                if (mapEl) mapEl.classList.add('day-mode');
+                if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
+                if (mapThemeText) mapThemeText.innerText = 'Нощен режим';
             } else {
-                document.body.classList.remove('day-mode');
+                if (mapEl) mapEl.classList.remove('day-mode');
+                if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
+                if (mapThemeText) mapThemeText.innerText = 'Дневен режим';
             }
 
             // Always use standard OpenStreetMap tile layer (which renders one-way arrows)
