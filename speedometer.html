@@ -1554,9 +1554,14 @@
 
         // --- SCREEN WAKE LOCK LOGIC ---
         async function requestWakeLock() {
+            if (appState.wakeLock) return; // Already active
             try {
                 if ('wakeLock' in navigator) {
                     appState.wakeLock = await navigator.wakeLock.request('screen');
+                    appState.wakeLock.addEventListener('release', () => {
+                        appState.wakeLock = null;
+                        console.log('Screen Wake Lock released');
+                    });
                     console.log('Screen Wake Lock is active');
                 }
             } catch (err) {
@@ -1568,16 +1573,26 @@
             if (appState.wakeLock) {
                 appState.wakeLock.release().then(() => {
                     appState.wakeLock = null;
-                    console.log('Screen Wake Lock released');
+                    console.log('Screen Wake Lock released manually');
                 });
             }
         }
 
         document.addEventListener('visibilitychange', () => {
-            if (appState.wakeLock !== null && document.visibilityState === 'visible') {
+            if (document.visibilityState === 'visible' && (appState.watchId !== null || appState.isSimulating)) {
                 requestWakeLock();
             }
         });
+
+        // Request Wake Lock on first user interaction (required by browser security)
+        function enableWakeLockOnInteraction() {
+            requestWakeLock();
+            // Remove listeners once activated
+            window.removeEventListener('click', enableWakeLockOnInteraction);
+            window.removeEventListener('touchstart', enableWakeLockOnInteraction);
+        }
+        window.addEventListener('click', enableWakeLockOnInteraction);
+        window.addEventListener('touchstart', enableWakeLockOnInteraction);
 
         // Load values from LocalStorage
         if (localStorage.getItem('speedometer_total_distance')) {
