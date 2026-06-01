@@ -609,9 +609,13 @@
             height: 180%;
             top: -40%;
             left: -40%;
-            background: #000;
+            background: #0f172a; /* Night mode background to match dark tiles */
             transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
             transform-origin: center center;
+        }
+
+        #map.day-mode {
+            background: #f4f3f0 !important; /* Day mode background to match OSM land color */
         }
 
         /* Enable interactions on Leaflet map elements, overriding global user-select none */
@@ -622,8 +626,8 @@
 
         /* Prevent thin grid lines/gaps between map tiles during zoom/rotation/scaling */
         .leaflet-tile {
-            margin: -0.5px !important;
-            padding: 0.5px !important;
+            margin: -1px !important;
+            padding: 1px !important;
             outline: 1px solid transparent;
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
