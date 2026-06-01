@@ -757,7 +757,7 @@
             left: 10px;
         }
 
-        body.fullscreen-map-active .map-overlay-btn {
+        body.fullscreen-map-active .map-overlay-btn:not(.recenter-btn) {
             display: flex;
         }
 
@@ -781,7 +781,7 @@
         }
 
         body.fullscreen-map-active .map-overlay-btn.recenter-btn.visible {
-            display: flex;
+            display: flex !important;
             bottom: calc(5px + env(safe-area-inset-bottom)) !important;
             right: calc(10px + env(safe-area-inset-right)) !important;
             left: auto !important;

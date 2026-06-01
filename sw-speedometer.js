@@ -1,4 +1,4 @@
-const CACHE_NAME = 'speedometer-v26';
+const CACHE_NAME = 'speedometer-v27';
 const ASSETS_TO_CACHE = [
   './speedometer.html',
   './speedometer.webmanifest',
