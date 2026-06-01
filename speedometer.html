@@ -3775,7 +3775,25 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw-speedometer.js')
-                    .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+                    .then(reg => {
+                        console.log('Service Worker registered successfully:', reg.scope);
+                        
+                        // Check for updates on register
+                        reg.onupdatefound = () => {
+                            const installingWorker = reg.installing;
+                            if (installingWorker) {
+                                installingWorker.onstatechange = () => {
+                                    if (installingWorker.state === 'installed') {
+                                        if (navigator.serviceWorker.controller) {
+                                            // New update available! Force reload.
+                                            console.log('[PWA] New version installed! Reloading to apply update...');
+                                            window.location.reload();
+                                        }
+                                    }
+                                };
+                            }
+                        };
+                    })
                     .catch(err => console.log('Service Worker registration failed:', err));
             });
         }

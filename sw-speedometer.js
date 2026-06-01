@@ -1,4 +1,4 @@
-const CACHE_NAME = 'speedometer-v23';
+const CACHE_NAME = 'speedometer-v25';
 const ASSETS_TO_CACHE = [
   './speedometer.html',
   './speedometer.webmanifest',
@@ -36,34 +36,54 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event
+// Fetch Event - Network-First Strategy for app assets to ensure instant updates when online
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests
   if (event.request.method !== 'GET') return;
 
-  // Skip map tile requests (e.g. basemaps from cartodb, osm) to avoid bloated cache
+  // Skip map tile requests to avoid bloated cache
   if (event.request.url.includes('basemaps.cartocdn.com') || event.request.url.includes('tile.openstreetmap.org')) {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((networkResponse) => {
-        // Cache dynamic assets if they are from our origin
-        if (networkResponse && networkResponse.status === 200 && event.request.url.startsWith(self.location.origin)) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
+  // Network-First for local origin requests (HTML, JS, manifest, local icons)
+  if (event.request.url.startsWith(self.location.origin)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // Offline fallback
+          return caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) return cachedResponse;
+            // General offline fallback for page navigation
+            if (event.request.mode === 'navigate') {
+              return caches.match('./speedometer.html');
+            }
           });
-        }
-        return networkResponse;
-      }).catch(() => {
-        // Return cached page offline
-        return caches.match('./speedometer.html');
-      });
-    })
-  );
+        })
+    );
+  } else {
+    // Cache-First with Network fallback for third-party CDNs (Leaflet CSS/JS, Fonts)
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        });
+      })
+    );
+  }
 });
