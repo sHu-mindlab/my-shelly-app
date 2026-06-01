@@ -825,6 +825,8 @@
 
         body.fullscreen-map-active .map-bottom-hud {
             display: flex;
+            flex-direction: row-reverse !important;
+            align-items: center;
             top: calc(10px + env(safe-area-inset-top)) !important;
             right: calc(10px + env(safe-area-inset-right)) !important;
             bottom: auto !important;
