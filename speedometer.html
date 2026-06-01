@@ -762,22 +762,21 @@
         }
 
         .map-overlay-btn.recenter-btn {
-            bottom: 25%;
-            left: 50%;
-            transform: translateX(-50%);
+            bottom: 10px;
+            right: 10px;
             display: none;
         }
 
         body.fullscreen-map-active .map-overlay-btn.recenter-btn.visible {
             display: flex;
-            bottom: 25% !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-            right: auto !important;
+            bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+            right: calc(10px + env(safe-area-inset-right)) !important;
+            left: auto !important;
+            transform: none !important;
         }
 
         body.fullscreen-map-active .map-overlay-btn.recenter-btn.visible:hover {
-            transform: translateX(-50%) translateY(-1px) !important;
+            transform: translateY(-1px) !important;
         }
 
 
@@ -2343,7 +2342,29 @@
             }
 
             if (appState.autoCenter && appState.map) {
-                appState.map.setView(latlng, appState.map.getZoom(), { animate: false });
+                let mapCenter = latlng;
+                if (document.body.classList.contains('fullscreen-map-active')) {
+                    const zoom = appState.map.getZoom();
+                    const latRad = appState.visualLat * Math.PI / 180;
+                    const metersPerPixel = 156543.03392 * Math.cos(latRad) / Math.pow(2, zoom);
+                    
+                    const wrapperEl = document.getElementById('map-wrapper');
+                    const wrapperHeight = wrapperEl ? wrapperEl.clientHeight : 600;
+                    const offsetPixels = wrapperHeight * 0.25; // 25% of height offset to put car at 1/4 from bottom
+                    const offsetMeters = offsetPixels * metersPerPixel;
+                    
+                    let targetRotHeading = appState.visualHeading;
+                    if (appState.currentSpeed <= 2 && (appState.lastValidHeading === null || appState.lastValidHeading === undefined)) {
+                        targetRotHeading = 0;
+                    }
+                    
+                    const headingRad = targetRotHeading * Math.PI / 180;
+                    const dLat = (offsetMeters * Math.cos(headingRad)) / 111111;
+                    const dLon = (offsetMeters * Math.sin(headingRad)) / (111111 * Math.cos(latRad));
+                    
+                    mapCenter = [appState.visualLat + dLat, appState.visualLon + dLon];
+                }
+                appState.map.setView(mapCenter, appState.map.getZoom(), { animate: false });
             }
 
             const mapContainer = document.getElementById('map');
