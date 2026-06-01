@@ -620,6 +620,15 @@
             -webkit-user-select: auto !important;
         }
 
+        /* Prevent thin grid lines/gaps between map tiles during zoom/rotation/scaling */
+        .leaflet-tile {
+            margin: -0.5px !important;
+            padding: 0.5px !important;
+            outline: 1px solid transparent;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+
         /* Night Mode Map Filter: Inverts baseline tiles to dark while preserving overlay colors */
         #map:not(.day-mode) .leaflet-tile {
             -webkit-filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(90%) !important;
@@ -750,7 +759,7 @@
 
         body.fullscreen-map-active .map-overlay-btn.back-btn {
             top: auto !important;
-            bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+            bottom: calc(5px + env(safe-area-inset-bottom)) !important;
             left: calc(10px + env(safe-area-inset-left)) !important;
             right: auto !important;
         }
@@ -769,7 +778,7 @@
 
         body.fullscreen-map-active .map-overlay-btn.recenter-btn.visible {
             display: flex;
-            bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+            bottom: calc(5px + env(safe-area-inset-bottom)) !important;
             right: calc(10px + env(safe-area-inset-right)) !important;
             left: auto !important;
             transform: none !important;
@@ -785,7 +794,7 @@
         .map-wrong-way-banner {
             position: absolute;
             z-index: 1001;
-            top: 20px;
+            top: calc(10px + env(safe-area-inset-top));
             left: 50%;
             transform: translateX(-50%);
             background: var(--accent-rose);
@@ -926,24 +935,7 @@
             top: 6px;
         }
 
-        /* Safe areas support for iOS / PWA */
-        @supports (top: env(safe-area-inset-top)) {
-            .map-overlay-btn.back-btn {
-                top: calc(20px + env(safe-area-inset-top));
-                left: calc(20px + env(safe-area-inset-left));
-            }
-            .map-overlay-btn.theme-toggle-btn {
-                top: calc(20px + env(safe-area-inset-top));
-                right: calc(20px + env(safe-area-inset-right));
-            }
-            .map-wrong-way-banner {
-                top: calc(20px + env(safe-area-inset-top));
-            }
-            .map-bottom-hud {
-                bottom: calc(24px + env(safe-area-inset-bottom));
-                left: calc(24px + env(safe-area-inset-left));
-            }
-        }
+        /* Safe areas support for iOS / PWA is handled inline via env() variables */
 
         .offline-map-overlay {
             position: absolute;
