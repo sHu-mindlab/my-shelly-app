@@ -604,8 +604,11 @@
         }
 
         #map {
-            width: 100%;
-            height: 100%;
+            position: absolute;
+            width: 180%;
+            height: 180%;
+            top: -40%;
+            left: -40%;
             background: #000;
             transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
             transform-origin: center center;
@@ -732,13 +735,13 @@
         }
 
         .map-overlay-btn.back-btn {
-            top: 20px;
-            left: 20px;
+            bottom: 10px;
+            left: 10px;
         }
 
         .map-overlay-btn.theme-toggle-btn {
-            top: 20px;
-            right: 20px;
+            top: 10px;
+            left: 10px;
         }
 
         body.fullscreen-map-active .map-overlay-btn {
@@ -746,25 +749,35 @@
         }
 
         body.fullscreen-map-active .map-overlay-btn.back-btn {
-            top: calc(20px + env(safe-area-inset-top)) !important;
-            left: calc(20px + env(safe-area-inset-left)) !important;
+            top: auto !important;
+            bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+            left: calc(10px + env(safe-area-inset-left)) !important;
+            right: auto !important;
         }
 
         body.fullscreen-map-active .map-overlay-btn.theme-toggle-btn {
-            top: calc(20px + env(safe-area-inset-top)) !important;
-            right: calc(20px + env(safe-area-inset-right)) !important;
+            top: calc(10px + env(safe-area-inset-top)) !important;
+            left: calc(10px + env(safe-area-inset-left)) !important;
+            right: auto !important;
         }
 
         .map-overlay-btn.recenter-btn {
-            bottom: 24px;
-            right: 24px;
+            bottom: 25%;
+            left: 50%;
+            transform: translateX(-50%);
             display: none;
         }
 
         body.fullscreen-map-active .map-overlay-btn.recenter-btn.visible {
             display: flex;
-            bottom: calc(24px + env(safe-area-inset-bottom)) !important;
-            right: calc(24px + env(safe-area-inset-right)) !important;
+            bottom: 25% !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            right: auto !important;
+        }
+
+        body.fullscreen-map-active .map-overlay-btn.recenter-btn.visible:hover {
+            transform: translateX(-50%) translateY(-1px) !important;
         }
 
 
@@ -803,8 +816,8 @@
         .map-bottom-hud {
             position: absolute;
             z-index: 1000;
-            bottom: 24px;
-            left: 24px;
+            top: 10px;
+            right: 10px;
             display: none;
             align-items: center;
             gap: 16px;
@@ -813,6 +826,10 @@
 
         body.fullscreen-map-active .map-bottom-hud {
             display: flex;
+            top: calc(10px + env(safe-area-inset-top)) !important;
+            right: calc(10px + env(safe-area-inset-right)) !important;
+            bottom: auto !important;
+            left: auto !important;
         }
 
         .map-speed-widget {
@@ -1545,7 +1562,16 @@
             autoCenter: true,
             isStationary: false,
             stationaryAnchor: null, // { lat, lon, timestamp }
-            recentPoints: []        // array of { lat, lon, timestamp, speedKmh }
+            recentPoints: [],       // array of { lat, lon, timestamp, speedKmh }
+            lastValidHeading: null,
+            wrongWayCounter: 0,
+            targetLat: null,
+            targetLon: null,
+            targetHeading: null,
+            visualLat: null,
+            visualLon: null,
+            visualHeading: null,
+            animationFrameId: null
         };
 
         // OSM Overpass data caching
@@ -1997,16 +2023,25 @@
 
         function updateMapPulseColor() {
             const pulseEl = document.getElementById('map-pulse-element');
-            if (pulseEl) {
-                const isWrongWay = document.body.classList.contains('wrong-way-alert');
-                if (isWrongWay) {
+            const isWrongWay = document.body.classList.contains('wrong-way-alert');
+            
+            let beamColor = '';
+            if (isWrongWay) {
+                beamColor = '#f43f5e';
+                if (pulseEl) {
                     pulseEl.style.background = '#f43f5e';
                     pulseEl.style.boxShadow = '0 0 12px #f43f5e';
-                } else {
-                    pulseEl.style.background = appState.mapMode === 'day' ? '#0891b2' : '#06b6d4';
+                }
+            } else {
+                beamColor = appState.mapMode === 'day' ? '#0891b2' : '#06b6d4';
+                if (pulseEl) {
+                    pulseEl.style.background = beamColor;
                     pulseEl.style.boxShadow = appState.mapMode === 'day' ? '0 0 10px rgba(8, 145, 178, 0.5)' : '0 0 10px #06b6d4';
                 }
             }
+            
+            // Set CSS variable for the SVG beam
+            document.documentElement.style.setProperty('--beam-color', beamColor);
         }
 
         function updateMapOverlaySpeed() {
@@ -2218,7 +2253,8 @@
             const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
             appState.mapTileLayer = L.tileLayer(tileUrl, {
-                maxZoom: 19
+                maxZoom: 19,
+                keepBuffer: 4
             }).addTo(appState.map);
 
             // Path line
@@ -2233,12 +2269,35 @@
             // Current position pulse icon
             const customPulseIcon = L.divIcon({
                 className: 'pulse-marker',
-                html: '<div id="map-pulse-element" style="width: 16px; height: 16px; border-radius:50%; background:#06b6d4; border:3px solid #fff; box-shadow:0 0 10px #06b6d4; transition: background 0.3s, box-shadow 0.3s;"></div>',
-                iconSize: [16, 16],
-                iconAnchor: [8, 8]
+                html: `
+                    <div class="user-location-container" style="position: relative; width: 36px; height: 36px; display: flex; justify-content: center; align-items: center; pointer-events: none;">
+                        <!-- Heading Beam (Google Maps-like cone/flashlight) -->
+                        <div class="heading-beam" style="position: absolute; width: 36px; height: 36px; transform: rotate(0deg); display: flex; justify-content: center; align-items: center; z-index: 1; transform-origin: center center;">
+                            <svg width="36" height="36" viewBox="0 0 36 36" style="display: block;">
+                                <defs>
+                                    <linearGradient id="beamGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                                        <stop offset="0%" stop-color="var(--beam-color, #06b6d4)" stop-opacity="0.6"/>
+                                        <stop offset="100%" stop-color="var(--beam-color, #06b6d4)" stop-opacity="0.0"/>
+                                    </linearGradient>
+                                </defs>
+                                <path d="M 18 18 L 10 0 A 18 18 0 0 1 26 0 Z" fill="url(#beamGrad)" />
+                            </svg>
+                        </div>
+                        <!-- Central Dot -->
+                        <div id="map-pulse-element" style="position: absolute; width: 14px; height: 14px; border-radius:50%; background:#06b6d4; border:2.5px solid #fff; box-shadow:0 0 8px rgba(6, 182, 212, 0.8); z-index: 2; transition: background 0.3s, box-shadow 0.3s;"></div>
+                    </div>
+                `,
+                iconSize: [36, 36],
+                iconAnchor: [18, 18]
             });
 
             appState.mapMarker = L.marker([startLat, startLon], { icon: customPulseIcon }).addTo(appState.map);
+            appState.targetLat = startLat;
+            appState.targetLon = startLon;
+            appState.targetHeading = 0;
+            appState.visualLat = startLat;
+            appState.visualLon = startLon;
+            appState.visualHeading = 0;
             appState.mapInitialized = true;
             
             // Ensure pulse color matches loaded theme
@@ -2255,6 +2314,64 @@
             });
         }
 
+        function animateMapStep() {
+            if (!appState.mapInitialized || !appState.mapVisible) {
+                appState.animationFrameId = null;
+                return;
+            }
+
+            const lerpFactor = 0.08;
+
+            if (appState.visualLat === undefined || appState.visualLat === null) appState.visualLat = appState.targetLat;
+            if (appState.visualLon === undefined || appState.visualLon === null) appState.visualLon = appState.targetLon;
+            if (appState.visualHeading === undefined || appState.visualHeading === null) appState.visualHeading = appState.targetHeading || 0;
+
+            appState.visualLat += (appState.targetLat - appState.visualLat) * lerpFactor;
+            appState.visualLon += (appState.targetLon - appState.visualLon) * lerpFactor;
+
+            if (appState.targetHeading !== null && !isNaN(appState.targetHeading)) {
+                let diff = appState.targetHeading - appState.visualHeading;
+                diff = ((diff + 180) % 360) - 180;
+                appState.visualHeading += diff * lerpFactor;
+                appState.visualHeading = (appState.visualHeading + 360) % 360;
+            }
+
+            const latlng = [appState.visualLat, appState.visualLon];
+
+            if (appState.mapMarker) {
+                appState.mapMarker.setLatLng(latlng);
+            }
+
+            if (appState.autoCenter && appState.map) {
+                appState.map.setView(latlng, appState.map.getZoom(), { animate: false });
+            }
+
+            const mapContainer = document.getElementById('map');
+            if (mapContainer) {
+                if (appState.autoCenter) {
+                    let rotHeading = appState.visualHeading;
+                    // If speed is extremely low and we don't have a valid heading yet, default to 0
+                    if (appState.currentSpeed <= 2 && (appState.lastValidHeading === null || appState.lastValidHeading === undefined)) {
+                        rotHeading = 0;
+                    }
+                    mapContainer.style.transform = `rotate(${-rotHeading}deg) scale(1.5)`;
+                } else {
+                    mapContainer.style.transform = 'rotate(0deg) scale(1)';
+                }
+            }
+
+            const beamEl = document.querySelector('.heading-beam');
+            if (beamEl) {
+                let beamHeading = appState.visualHeading;
+                if (appState.lastValidHeading !== null && appState.lastValidHeading !== undefined) {
+                    beamHeading = appState.lastValidHeading;
+                }
+                beamEl.style.transform = `rotate(${beamHeading}deg)`;
+            }
+
+            appState.animationFrameId = requestAnimationFrame(animateMapStep);
+        }
+
         function updateMapLocation(lat, lon, isWrongWay = false) {
             if (!appState.mapInitialized || !appState.mapVisible) return;
 
@@ -2265,8 +2382,26 @@
             appState.lastLat = displayLat;
             appState.lastLon = displayLon;
 
+            // Set targets for interpolation
+            appState.targetLat = displayLat;
+            appState.targetLon = displayLon;
+
+            let heading = null;
+            if (appState.lastPosition && appState.lastPosition.coords) {
+                heading = appState.lastPosition.coords.heading;
+            }
+            if (heading !== null && !isNaN(heading)) {
+                if (appState.currentSpeed > 5) {
+                    appState.lastValidHeading = heading;
+                }
+                appState.targetHeading = heading;
+            } else if (appState.lastValidHeading !== null) {
+                appState.targetHeading = appState.lastValidHeading;
+            } else {
+                appState.targetHeading = 0;
+            }
+
             const latlng = [displayLat, displayLon];
-            appState.mapMarker.setLatLng(latlng);
             
             // Push coords to path if it is different from the last coordinate (prevents duplicates when stationary)
             let shouldPush = true;
@@ -2298,37 +2433,13 @@
             }
 
             appState.mapPath.setLatLngs(appState.pathCoordinates);
-            
-            // Pan map only if autoCenter is active
-            if (appState.autoCenter) {
-                appState.map.panTo(latlng);
-            }
-
-            // Rotate map based on heading only if autoCenter is active
-            let heading = null;
-            if (appState.lastPosition && appState.lastPosition.coords) {
-                heading = appState.lastPosition.coords.heading;
-            }
-
-            const mapContainer = document.getElementById('map');
-            if (mapContainer) {
-                if (appState.autoCenter && heading !== null && !isNaN(heading) && appState.currentSpeed > 5) {
-                    mapContainer.style.transform = `rotate(${-heading}deg) scale(1.5)`;
-                } else if (!appState.autoCenter || appState.currentSpeed <= 2) {
-                    mapContainer.style.transform = 'rotate(0deg) scale(1)';
-                }
-            }
 
             // Dynamically change map pulse color on wrong way or day/night mode
-            const pulseEl = document.getElementById('map-pulse-element');
-            if (pulseEl) {
-                if (isWrongWay) {
-                    pulseEl.style.background = '#f43f5e';
-                    pulseEl.style.boxShadow = '0 0 12px #f43f5e';
-                } else {
-                    pulseEl.style.background = appState.mapMode === 'day' ? '#0891b2' : '#06b6d4';
-                    pulseEl.style.boxShadow = appState.mapMode === 'day' ? '0 0 10px rgba(8, 145, 178, 0.5)' : '0 0 10px #06b6d4';
-                }
+            updateMapPulseColor();
+
+            // Start animation loop if not running
+            if (!appState.animationFrameId) {
+                appState.animationFrameId = requestAnimationFrame(animateMapStep);
             }
         }
 
@@ -2509,16 +2620,49 @@
             let minDistance = Infinity;
             let snappedPoint = { lat, lon };
 
+            let userBearing = null;
+            if (appState.lastPosition && appState.currentSpeed > 3) {
+                userBearing = calculateBearing(
+                    appState.lastPosition.coords.latitude,
+                    appState.lastPosition.coords.longitude,
+                    lat,
+                    lon
+                );
+            }
+
             for (const road of osmCache.roads) {
                 if (!road.geometry || road.geometry.length < 2) continue;
                 
+                const tags = road.tags || {};
+                const isOneway = tags.oneway === 'yes' || tags.oneway === '1' || tags.oneway === '-1' || tags.junction === 'roundabout';
+
                 for (let i = 0; i < road.geometry.length - 1; i++) {
                     const p1 = road.geometry[i];
                     const p2 = road.geometry[i+1];
                     
                     const closest = getClosestPointOnSegment(lat, lon, p1.lat, p1.lon, p2.lat, p2.lon);
-                    if (closest.distance < minDistance) {
-                        minDistance = closest.distance;
+                    let distance = closest.distance;
+
+                    // Penalty for opposite direction on one-way streets
+                    // Only apply if wrongWayCounter < 5 (we haven't verified a wrong way trajectory yet)
+                    if (isOneway && userBearing !== null && (!appState.wrongWayCounter || appState.wrongWayCounter < 5)) {
+                        let roadBearing = 0;
+                        if (tags.oneway === '-1') {
+                            roadBearing = calculateBearing(p2.lat, p2.lon, p1.lat, p1.lon);
+                        } else {
+                            roadBearing = calculateBearing(p1.lat, p1.lon, p2.lat, p2.lon);
+                        }
+                        
+                        let diff = Math.abs(userBearing - roadBearing);
+                        if (diff > 180) diff = 360 - diff;
+                        
+                        if (diff > 100) {
+                            distance += 20; // 20m penalty
+                        }
+                    }
+
+                    if (distance < minDistance) {
+                        minDistance = distance;
                         snappedPoint = { lat: closest.lat, lon: closest.lon };
                     }
                 }
@@ -2549,6 +2693,34 @@
             return R * c; // in meters
         }
 
+        function isCarRoad(road) {
+            if (!road.tags) return false;
+            const highway = road.tags.highway;
+            if (!highway) return false;
+            
+            const excludedHighways = [
+                'footway', 'pedestrian', 'path', 'cycleway', 'steps', 
+                'bridleway', 'track', 'sidewalk', 'corridor', 'platform',
+                'elevator', 'stairs', 'proposed', 'construction', 'footpath',
+                'staircase', 'cyclepath', 'crossing'
+            ];
+            
+            if (excludedHighways.includes(highway)) {
+                return false;
+            }
+            
+            const motorcar = road.tags.motorcar;
+            const motor_vehicle = road.tags.motor_vehicle;
+            const vehicle = road.tags.vehicle;
+            const access = road.tags.access;
+            
+            if (motorcar === 'no' || motor_vehicle === 'no' || vehicle === 'no' || access === 'no') {
+                return false;
+            }
+            
+            return true;
+        }
+
         // OSM OVERPASS API ROAD RETRIEVAL
         async function fetchOSMRoads(lat, lon) {
             if (appState.isWrongWaySim) return; // ignore API calls in mock wrong-way test
@@ -2575,7 +2747,7 @@
                 
                 osmCache.centerLat = lat;
                 osmCache.centerLon = lon;
-                osmCache.roads = data.elements || [];
+                osmCache.roads = (data.elements || []).filter(isCarRoad);
                 
                 wrongWayText.innerText = 'Насрещно: ОК';
                 wrongWayDot.className = 'status-dot connected';
@@ -2717,7 +2889,12 @@
 
                     // If direction differs by > 100 degrees and speed is > 3 km/h
                     if (diff > 100 && appState.currentSpeed > 3) {
-                        setWrongWayAlert(true, tags.name || 'еднопосочна улица');
+                        appState.wrongWayCounter = (appState.wrongWayCounter || 0) + 1;
+                        if (appState.wrongWayCounter >= 5) {
+                            setWrongWayAlert(true, tags.name || 'еднопосочна улица');
+                        } else {
+                            setWrongWayAlert(false);
+                        }
                         return;
                     }
                 }
@@ -2729,6 +2906,7 @@
                 }
             }
 
+            appState.wrongWayCounter = 0;
             setWrongWayAlert(false);
         }
 
@@ -2971,6 +3149,7 @@
 
                 checkWrongWay(lat, lon, prevLat, prevLon);
             } else if (speedKmh <= 2.5) {
+                appState.wrongWayCounter = 0;
                 setWrongWayAlert(false); // Disable alerts at stand-still
             }
 
@@ -3252,6 +3431,7 @@
                 let prevLon = appState.lastPosition.coords.longitude;
                 checkWrongWay(simLat, simLon, prevLat, prevLon);
             } else if (speedKmh <= 2.5) {
+                appState.wrongWayCounter = 0;
                 setWrongWayAlert(false);
             }
 
