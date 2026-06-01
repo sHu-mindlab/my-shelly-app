@@ -2374,25 +2374,29 @@
                 return;
             }
 
-            // Calculate fraction based on time elapsed since the last GPS update
+            // Calculate frame delta time
             const now = Date.now();
-            const elapsed = now - (appState.lastUpdateTime || now);
-            const interval = appState.estimatedInterval || 1000;
-            const fraction = Math.min(1, elapsed / interval);
-            
-            // If prev coordinates are not initialized, set them
-            if (appState.prevLat === undefined || appState.prevLat === null) appState.prevLat = appState.targetLat;
-            if (appState.prevLon === undefined || appState.prevLon === null) appState.prevLon = appState.targetLon;
-            if (appState.prevHeading === undefined || appState.prevHeading === null) appState.prevHeading = appState.targetHeading || 0;
+            if (!appState.lastFrameTime) appState.lastFrameTime = now;
+            const dt = Math.min(0.1, (now - appState.lastFrameTime) / 1000); // limit to 100ms
+            appState.lastFrameTime = now;
+
+            if (appState.visualLat === undefined || appState.visualLat === null) appState.visualLat = appState.targetLat;
+            if (appState.visualLon === undefined || appState.visualLon === null) appState.visualLon = appState.targetLon;
+            if (appState.visualHeading === undefined || appState.visualHeading === null) appState.visualHeading = appState.targetHeading || 0;
+
+            // Frame-rate independent exponential interpolation
+            // k = 2.2 is extremely smooth and fluid, completely eliminating jerky/pulsing movement
+            const k = 2.2; 
+            const t = 1 - Math.exp(-k * dt);
 
             // Interpolate position smoothly
-            appState.visualLat = appState.prevLat + (appState.targetLat - appState.prevLat) * fraction;
-            appState.visualLon = appState.prevLon + (appState.targetLon - appState.prevLon) * fraction;
+            appState.visualLat += (appState.targetLat - appState.visualLat) * t;
+            appState.visualLon += (appState.targetLon - appState.visualLon) * t;
 
-            // Interpolate heading (shortest angular path)
-            let diff = appState.targetHeading - appState.prevHeading;
+            // Interpolate heading smoothly (shortest angular path)
+            let diff = appState.targetHeading - appState.visualHeading;
             diff = ((diff + 180) % 360) - 180;
-            let currentHeading = appState.prevHeading + diff * fraction;
+            let currentHeading = appState.visualHeading + diff * t;
             appState.visualHeading = (currentHeading + 360) % 360;
 
             const latlng = [appState.visualLat, appState.visualLon];
@@ -2431,7 +2435,6 @@
             if (mapContainer) {
                 if (appState.autoCenter) {
                     let rotHeading = appState.visualHeading;
-                    // If speed is extremely low and we don't have a valid heading yet, default to 0
                     if (appState.currentSpeed <= 2 && (appState.lastValidHeading === null || appState.lastValidHeading === undefined)) {
                         rotHeading = 0;
                     }
@@ -2463,22 +2466,6 @@
             appState.lastLat = displayLat;
             appState.lastLon = displayLon;
 
-            // Track update interval
-            const now = Date.now();
-            if (appState.lastUpdateTime) {
-                const diff = now - appState.lastUpdateTime;
-                if (diff > 300 && diff < 3000) {
-                    appState.estimatedInterval = diff;
-                }
-            } else {
-                appState.estimatedInterval = 1000; // default
-            }
-            appState.lastUpdateTime = now;
-
-            // Shift previous coordinates to start from where we currently are
-            appState.prevLat = (appState.visualLat !== null && appState.visualLat !== undefined) ? appState.visualLat : (appState.targetLat || displayLat);
-            appState.prevLon = (appState.visualLon !== null && appState.visualLon !== undefined) ? appState.visualLon : (appState.targetLon || displayLon);
-
             appState.targetLat = displayLat;
             appState.targetLon = displayLon;
 
@@ -2487,12 +2474,10 @@
                 heading = appState.lastPosition.coords.heading;
             }
             if (heading === null || isNaN(heading)) {
-                if (appState.prevLat && appState.prevLon && appState.currentSpeed > 3) {
-                    heading = calculateBearing(appState.prevLat, appState.prevLon, displayLat, displayLon);
+                if (appState.visualLat && appState.visualLon && appState.currentSpeed > 3) {
+                    heading = calculateBearing(appState.visualLat, appState.visualLon, displayLat, displayLon);
                 }
             }
-
-            appState.prevHeading = (appState.visualHeading !== null && appState.visualHeading !== undefined) ? appState.visualHeading : (appState.targetHeading || heading || 0);
 
             if (heading !== null && !isNaN(heading)) {
                 if (appState.currentSpeed > 5) {
@@ -2543,6 +2528,7 @@
 
             // Start animation loop if not running
             if (!appState.animationFrameId) {
+                appState.lastFrameTime = Date.now();
                 appState.animationFrameId = requestAnimationFrame(animateMapStep);
             }
         }
