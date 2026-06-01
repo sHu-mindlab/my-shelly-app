@@ -626,8 +626,10 @@
 
         /* Prevent thin grid lines/gaps between map tiles during zoom/rotation/scaling */
         .leaflet-tile {
-            margin: -1px !important;
-            padding: 1px !important;
+            box-sizing: content-box !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
             outline: 1px solid transparent;
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
