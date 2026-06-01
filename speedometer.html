@@ -839,29 +839,30 @@
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border-radius: 24px;
-            padding: 14px 28px;
+            padding: 8px 18px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
             min-width: 120px;
+            height: 104px;
             pointer-events: auto;
         }
 
         .map-speed-val {
             font-family: var(--font-digital);
-            font-size: 4.8rem;
+            font-size: 5.4rem;
             font-weight: 900;
-            line-height: 0.9;
+            line-height: 0.85;
             color: var(--text-light);
             text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
             transition: color 0.2s;
         }
 
-        .map-speed-val.digits-1 { font-size: 5rem; }
-        .map-speed-val.digits-2 { font-size: 4.5rem; }
-        .map-speed-val.digits-3 { font-size: 3.8rem; }
+        .map-speed-val.digits-1 { font-size: 5.6rem; }
+        .map-speed-val.digits-2 { font-size: 5.0rem; }
+        .map-speed-val.digits-3 { font-size: 4.2rem; }
 
         body.fullscreen-map-active.speed-alert .map-speed-val {
             color: #ff3b5c !important;
@@ -914,11 +915,12 @@
 
         .map-speed-limit-sign span {
             font-family: var(--font-digital);
-            font-size: 2.1rem;
+            font-size: 2.6rem;
             font-weight: 900;
             color: #000000;
             line-height: 1;
             letter-spacing: -1px;
+            margin-top: 3px;
         }
 
         /* Safe areas support for iOS / PWA */
