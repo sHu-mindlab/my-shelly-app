@@ -2497,11 +2497,11 @@
                 
                 if (video.paused) {
                     video.play().catch(e => {
-                        console.warn('iOS Wake Lock video failed to play:', e);
+                        console.log('iOS Wake Lock video autoplay blocked/failed:', e.message);
                     });
                 }
             } catch (err) {
-                console.warn('iOS Wake Lock video error:', err);
+                console.log('iOS Wake Lock video initialization skipped:', err.message);
             }
         }
 
