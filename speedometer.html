@@ -1243,6 +1243,82 @@
             animation: limit-sign-pulse 0.8s infinite alternate;
         }
 
+        /* Custom transparent zoom controls */
+        .zoom-controls {
+            position: absolute;
+            right: 15px;
+            top: 75px; /* Positioned nicely on the right side */
+            z-index: 1000;
+            display: none; /* Only show when map is active */
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        /* Show zoom controls when full screen map or nav is active */
+        body.fullscreen-map-active #map-zoom-controls {
+            display: flex;
+        }
+        
+        body.fullscreen-nav-active #nav-zoom-controls {
+            display: flex;
+        }
+
+        /* Auto-hide navigation zoom controls on inactivity */
+        body.fullscreen-nav-active #nav-zoom-controls {
+            transition: opacity 0.4s ease, transform 0.4s ease !important;
+        }
+        
+        body.fullscreen-nav-active.nav-controls-hidden #nav-zoom-controls {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateY(-20px) !important;
+        }
+
+        .zoom-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-light);
+            font-size: 1.4rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.2s ease;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .zoom-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .zoom-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Day mode adjustments */
+        .map-wrapper.day-mode .zoom-btn {
+            background: rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.12);
+            color: #1e293b;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .map-wrapper.day-mode .zoom-btn:hover {
+            background: rgba(0, 0, 0, 0.15);
+            border-color: rgba(0, 0, 0, 0.20);
+        }
+
         /* Search Container CSS */
         .nav-search-container {
             position: absolute;
@@ -2014,6 +2090,12 @@
                     <span>Центрирай</span>
                 </button>
 
+                <!-- Zoom Controls -->
+                <div class="zoom-controls" id="map-zoom-controls">
+                    <button class="zoom-btn" id="map-zoom-in" title="Приближаване">+</button>
+                    <button class="zoom-btn" id="map-zoom-out" title="Отдалечаване">−</button>
+                </div>
+
                 <!-- Flashed Alert Banner for Wrong Way Driving -->
                 <div class="map-wrong-way-banner" id="map-wrong-way-banner">
                     ⚠️ НАСРЕЩНО ДВИЖЕНИЕ! ⚠️
@@ -2113,6 +2195,12 @@
                             <line x1="20" y1="12" x2="23" y2="12"></line>
                         </svg>
                     </button>
+                </div>
+
+                <!-- Zoom Controls -->
+                <div class="zoom-controls" id="nav-zoom-controls">
+                    <button class="zoom-btn" id="nav-zoom-in" title="Приближаване">+</button>
+                    <button class="zoom-btn" id="nav-zoom-out" title="Отдалечаване">−</button>
                 </div>
 
                 <div class="map-wrong-way-banner" id="nav-map-wrong-way-banner">
@@ -2329,6 +2417,8 @@
             navRouteSteps: [],
             navActive: false,
             navFollow: true,
+            navFollowZoom: 18.5,
+            navTargetZoom: 18.5,
             nav3D: true,
             navRouteSimIndex: 0,
             navRouteSimProgress: 0
@@ -2401,7 +2491,7 @@
                         if (video.currentTime > 0.5) video.currentTime = 0;
                     });
                     // Minimal base64 silent video
-                    video.src = 'data:video/mp4;base64,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';
+                    video.src = 'data:video/mp4;base64,AAAAHGZ0eXBNNFYgAAACAGlzb21pc28yYXZjMQAAAAhmcmVlAAAGF21kYXTeBAAAbGliZmFhYyAxLjI4AABCAJMgBDIARwAAArEGBf//rdxF6b3m2Ui3lizYINkj7u94MjY0IC0gY29yZSAxNDIgcjIgOTU2YzhkOCAtIEguMjY0L01QRUctNCBBVkMgY29kZWMgLSBDb3B5bGVmdCAyMDAzLTIwMTQgLSBodHRwOi8vd3d3LnZpZGVvbGFuLm9yZy94MjY0Lmh0bWwgLSBvcHRpb25zOiBjYWJhYz0wIHJlZj0zIGRlYmxvY2s9MTowOjAgYW5hbHlzZT0weDE6MHgxMTEgbWU9aGV4IHN1Ym1lPTcgcHN5PTEgcHN5X3JkPTEuMDA6MC4wMCBtaXhlZF9yZWY9MSBtZV9yYW5nZT0xNiBjaHJvbWFfbWU9MSB0cmVsbGlzPTEgOHg4ZGN0PTAgY3FtPTAgZGVhZHpvbmU9MjEsMTEgZmFzdF9wc2tpcD0xIGNocm9tYV9xcF9vZmZzZXQ9LTIgdGhyZWFkcz02IGxvb2thaGVhZF90aHJlYWRzPTEgc2xpY2VkX3RocmVhZHM9MCBucj0wIGRlY2ltYXRlPTEgaW50ZXJsYWNlZD0wIGJsdXJheV9jb21wYXQ9MCBjb25zdHJhaW5lZF9pbnRyYT0wIGJmcmFtZXM9MCB3ZWlnaHRwPTAga2V5aW50PTI1MCBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCB2YnZfbWF4cmF0ZT03NjggdmJ2X2J1ZnNpemU9MzAwMCBjcmZfbWF4PTAuMCBuYWxfaHJkPW5vbmUgZmlsbGVyPTAgaXBfcmF0aW89MS40MCBhcT0xOjEuMDAAgAAAAFZliIQL8mKAAKvMnJycnJycnJycnXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXiEASZACGQAjgCEASZACGQAjgAAAAAdBmjgX4GSAIQBJkAIZACOAAAAAB0GaVAX4GSAhAEmQAhkAI4AhAEmQAhkAI4AAAAAGQZpgL8DJIQBJkAIZACOAIQBJkAIZACOAAAAABkGagC/AySEASZACGQAjgAAAAAZBmqAvwMkhAEmQAhkAI4AhAEmQAhkAI4AAAAAGQZrAL8DJIQBJkAIZACOAAAAABkGa4C/AySEASZACGQAjgCEASZACGQAjgAAAAAZBmwAvwMkhAEmQAhkAI4AAAAAGQZsgL8DJIQBJkAIZACOAIQBJkAIZACOAAAAABkGbQC/AySEASZACGQAjgCEASZACGQAjgAAAAAZBm2AvwMkhAEmQAhkAI4AAAAAGQZuAL8DJIQBJkAIZACOAIQBJkAIZACOAAAAABkGboC/AySEASZACGQAjgAAAAAZBm8AvwMkhAEmQAhkAI4AhAEmQAhkAI4AAAAAGQZvgL8DJIQBJkAIZACOAAAAABkGaAC/AySEASZACGQAjgCEASZACGQAjgAAAAAZBmiAvwMkhAEmQAhkAI4AhAEmQAhkAI4AAAAAGQZpAL8DJIQBJkAIZACOAAAAABkGaYC/AySEASZACGQAjgCEASZACGQAjgAAAAAZBmoAvwMkhAEmQAhkAI4AAAAAGQZqgL8DJIQBJkAIZACOAIQBJkAIZACOAAAAABkGawC/AySEASZACGQAjgAAAAAZBmuAvwMkhAEmQAhkAI4AhAEmQAhkAI4AAAAAGQZsAL8DJIQBJkAIZACOAAAAABkGbIC/AySEASZACGQAjgCEASZACGQAjgAAAAAZBm0AvwMkhAEmQAhkAI4AhAEmQAhkAI4AAAAABkGbQC/AySEASZACGQAjgCEASZACGQAjgAAAAAZBm2AvwMkhAEmQAhkAI4AAAAAGQZuAL8DJIQBJkAIZACOAIQBJkAIZACOAAAAABkGboC/AySEASZACGQAjgAAAAAZBm8AvwMkhAEmQAhkAI4AhAEmQAhkAI4AAAAAGQZvgL8DJIQBJkAIZACOAAAAABkGaAC/AySEASZACGQAjgCEASZACGQAjgAAAAAZBmiAvwMkhAEmQAhkAI4AhAEmQAhkAI4AAAAAGQZpAL8DJIQBJkAIZACOAAAAABkGaYC/AySEASZACGQAjgCEASZACGQAjgAAAAAZBmoAvwMkhAEmQAhkAI4AAAAAGQZqgL8DJIQBJkAIZACOAIQBJkAIZACOAAAAABkGaw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';
                     document.body.appendChild(video);
                 }
                 
@@ -2966,6 +3056,8 @@
         if (navMapRecenterBtn) {
             addTapListener(navMapRecenterBtn, () => {
                 appState.navFollow = true;
+                appState.navTargetZoom = 18.5; // Reset target zoom to default close-up on recenter
+                appState.navFollowZoom = appState.navMap ? appState.navMap.getZoom() : 18.5; // Start smooth transition from current zoom
                 const followBtn = document.getElementById('nav-map-follow-btn');
                 if (followBtn) followBtn.classList.add('active');
                 navMapRecenterBtn.classList.remove('visible');
@@ -2977,8 +3069,9 @@
                     const topPadding = appState.navMapHeight / 3;
                     appState.navMap.easeTo({
                         center: [appState.lastLon, appState.lastLat],
-                        zoom: 16,
-                        padding: { top: topPadding, bottom: 0, left: 0, right: 0 }
+                        zoom: appState.navTargetZoom,
+                        padding: { top: topPadding, bottom: 0, left: 0, right: 0 },
+                        duration: 1000
                     });
                 }
             });
@@ -3008,10 +3101,71 @@
                 if (appState.navFollow) {
                     navMapFollowBtn.classList.add('active');
                     if (navMapRecenterBtn) navMapRecenterBtn.classList.remove('visible');
+                    // Reset to default close zoom when manual follow is clicked
+                    appState.navTargetZoom = 18.5;
+                    appState.navFollowZoom = appState.navMap ? appState.navMap.getZoom() : 18.5;
                 } else {
                     navMapFollowBtn.classList.remove('active');
                     if (navMapRecenterBtn) navMapRecenterBtn.classList.add('visible');
                 }
+            });
+        }
+
+        // Custom Zoom Buttons for Main Map
+        const btnMapZoomIn = document.getElementById('map-zoom-in');
+        const btnMapZoomOut = document.getElementById('map-zoom-out');
+
+        if (btnMapZoomIn) {
+            addTapListener(btnMapZoomIn, () => {
+                if (!appState.map) return;
+                appState.isZoomingViaButtons = true;
+                appState.map.zoomIn();
+                setTimeout(() => { appState.isZoomingViaButtons = false; }, 100);
+            });
+        }
+
+        if (btnMapZoomOut) {
+            addTapListener(btnMapZoomOut, () => {
+                if (!appState.map) return;
+                appState.isZoomingViaButtons = true;
+                appState.map.zoomOut();
+                setTimeout(() => { appState.isZoomingViaButtons = false; }, 100);
+            });
+        }
+
+        // Custom Zoom Buttons for Navigation Map
+        const btnNavZoomIn = document.getElementById('nav-zoom-in');
+        const btnNavZoomOut = document.getElementById('nav-zoom-out');
+
+        if (btnNavZoomIn) {
+            addTapListener(btnNavZoomIn, () => {
+                if (!appState.navMap) return;
+                appState.isZoomingViaButtons = true;
+                if (appState.navFollow) {
+                    appState.navTargetZoom = Math.min(20, (appState.navTargetZoom || 18.5) + 1.0);
+                } else {
+                    appState.navMap.easeTo({
+                        zoom: Math.min(20, appState.navMap.getZoom() + 1.0),
+                        duration: 300
+                    });
+                }
+                setTimeout(() => { appState.isZoomingViaButtons = false; }, 100);
+            });
+        }
+
+        if (btnNavZoomOut) {
+            addTapListener(btnNavZoomOut, () => {
+                if (!appState.navMap) return;
+                appState.isZoomingViaButtons = true;
+                if (appState.navFollow) {
+                    appState.navTargetZoom = Math.max(12, (appState.navTargetZoom || 18.5) - 1.0);
+                } else {
+                    appState.navMap.easeTo({
+                        zoom: Math.max(12, appState.navMap.getZoom() - 1.0),
+                        duration: 300
+                    });
+                }
+                setTimeout(() => { appState.isZoomingViaButtons = false; }, 100);
             });
         }
 
@@ -3249,6 +3403,7 @@
                 if (btnMapRecenter) btnMapRecenter.classList.add('visible');
             });
             appState.map.on('zoomstart', () => {
+                if (appState.isZoomingViaButtons) return;
                 appState.autoCenter = false;
                 if (btnMapRecenter) btnMapRecenter.classList.add('visible');
             });
@@ -3375,11 +3530,21 @@
                         rotHeading = 0;
                     }
                     
+                    // Smoothly interpolate follow zoom
+                    if (appState.navFollowZoom === undefined || appState.navFollowZoom === null) {
+                        appState.navFollowZoom = 18.5;
+                    }
+                    if (appState.navTargetZoom === undefined || appState.navTargetZoom === null) {
+                        appState.navTargetZoom = 18.5;
+                    }
+                    appState.navFollowZoom += (appState.navTargetZoom - appState.navFollowZoom) * t;
+
                     const height = appState.navMapHeight || appState.navMap.getContainer().clientHeight;
                     const topPadding = height ? height / 3 : 0;
                     
                     appState.navMap.jumpTo({
                         center: navLngLat,
+                        zoom: appState.navFollowZoom,
                         bearing: rotHeading,
                         pitch: appState.nav3D ? 60 : 0,
                         padding: { top: topPadding, bottom: 0, left: 0, right: 0 }
@@ -4124,15 +4289,18 @@
                 const recenterBtn = document.getElementById('nav-map-recenter-btn');
                 if (recenterBtn) recenterBtn.classList.add('visible');
             });
-            appState.navMap.on('pitchstart', () => {
-                appState.navFollow = false;
-                const followBtn = document.getElementById('nav-map-follow-btn');
-                if (followBtn) followBtn.classList.remove('active');
-                
-                const recenterBtn = document.getElementById('nav-map-recenter-btn');
-                if (recenterBtn) recenterBtn.classList.add('visible');
+            appState.navMap.on('pitchstart', (e) => {
+                if (e.originalEvent) {
+                    appState.navFollow = false;
+                    const followBtn = document.getElementById('nav-map-follow-btn');
+                    if (followBtn) followBtn.classList.remove('active');
+                    
+                    const recenterBtn = document.getElementById('nav-map-recenter-btn');
+                    if (recenterBtn) recenterBtn.classList.add('visible');
+                }
             });
-            appState.navMap.on('zoomstart', () => {
+            appState.navMap.on('zoomstart', (e) => {
+                if (appState.isZoomingViaButtons || !e.originalEvent) return;
                 appState.navFollow = false;
                 const followBtn = document.getElementById('nav-map-follow-btn');
                 if (followBtn) followBtn.classList.remove('active');
@@ -4297,17 +4465,35 @@
                 appState.navRouteSimProgress = 0;
                 appState.navRouteSimCoordIndex = 0; // Reset simulation coordinate pointer
 
-                // Update MapLibre source
+                // Update MapLibre source & center at the start of the route
                 if (appState.navMap) {
                     setupNavMapLayers();
                     
-                    // Fit map bounds to the route
                     const coordinates = route.geometry.coordinates;
-                    const bounds = coordinates.reduce((acc, coord) => {
-                        return acc.extend(coord);
-                    }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
-                    
-                    appState.navMap.fitBounds(bounds, { padding: 40 });
+                    if (coordinates && coordinates.length > 0) {
+                        const startLon = coordinates[0][0];
+                        const startLat = coordinates[0][1];
+                        
+                        appState.navFollow = true;
+                        appState.navTargetZoom = 18.5; // Default close-up zoom
+                        appState.navFollowZoom = appState.navMap.getZoom(); // Start interpolation from current zoom
+                        
+                        const followBtn = document.getElementById('nav-map-follow-btn');
+                        if (followBtn) followBtn.classList.add('active');
+                        const recenterBtn = document.getElementById('nav-map-recenter-btn');
+                        if (recenterBtn) recenterBtn.classList.remove('visible');
+                        
+                        const height = appState.navMapHeight || appState.navMap.getContainer().clientHeight;
+                        const topPadding = height ? height / 3 : 0;
+                        
+                        appState.navMap.jumpTo({
+                            center: [startLon, startLat],
+                            zoom: appState.navFollowZoom,
+                            bearing: appState.targetHeading || 0,
+                            pitch: appState.nav3D ? 60 : 0,
+                            padding: { top: topPadding, bottom: 0, left: 0, right: 0 }
+                        });
+                    }
                 }
 
                 // Show turn-by-turn instruction card
