@@ -1150,12 +1150,15 @@
 
         body.fullscreen-nav-active .nav-map-controls-bottom {
             display: flex;
+            width: calc(100% - 20px);
+            max-width: 480px;
+            box-sizing: border-box;
         }
 
         .nav-map-controls-bottom .map-overlay-btn {
             position: static !important;
             display: flex !important;
-            width: 44px;
+            flex: 1 !important;
             height: 44px;
             padding: 0 !important;
             border-radius: 12px !important;
@@ -1167,18 +1170,24 @@
 
         /* Recenter button dynamic width transition in the controls row */
         #nav-map-recenter-btn {
-            transition: opacity 0.3s ease, width 0.3s ease, padding 0.3s ease, margin 0.3s ease, border-width 0.3s ease !important;
-            width: 44px;
-            overflow: hidden;
-            white-space: nowrap;
+            transition: opacity 0.3s ease, flex 0.3s ease, width 0.3s ease, padding 0.3s ease, margin 0.3s ease, border-width 0.3s ease !important;
         }
 
         #nav-map-recenter-btn:not(.visible) {
+            flex: 0 !important;
             width: 0 !important;
+            min-width: 0 !important;
             padding: 0 !important;
+            margin: 0 !important;
             border: none !important;
             opacity: 0 !important;
             pointer-events: none !important;
+        }
+
+        #nav-map-recenter-btn.visible {
+            flex: 1 !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
         }
 
         body.fullscreen-nav-active.wrong-way-alert #nav-map-wrong-way-banner {
@@ -1222,6 +1231,7 @@
             width: 90%;
             max-width: 420px;
             pointer-events: auto;
+            transition: top 0.3s ease, opacity 0.4s ease, transform 0.4s ease !important;
         }
 
         body.fullscreen-nav-active .nav-search-container {
@@ -1230,6 +1240,15 @@
             transform: translateX(-50%);
             width: calc(100% - 20px);
             max-width: 480px;
+        }
+
+        /* Shift Search Container down when routing is active */
+        body.nav-routing-active .nav-search-container {
+            top: 80px;
+        }
+
+        body.fullscreen-nav-active.nav-routing-active .nav-search-container {
+            top: calc(85px + env(safe-area-inset-top)) !important;
         }
 
         /* Auto-hide navigation controls & transitions */
@@ -1322,7 +1341,7 @@
         /* Turn by Turn Instructions styling */
         .nav-instructions-overlay {
             position: absolute;
-            top: 75px;
+            top: 10px;
             left: 50%;
             transform: translateX(-50%);
             width: 90%;
@@ -1344,7 +1363,7 @@
         }
 
         body.fullscreen-nav-active .nav-instructions-overlay {
-            top: calc(65px + env(safe-area-inset-top));
+            top: calc(10px + env(safe-area-inset-top)) !important;
             width: calc(100% - 20px);
             max-width: 480px;
         }
@@ -2710,31 +2729,56 @@
             }
         }
 
-        function toggleMapTheme() {
-            const nextMode = appState.mapMode === 'night' ? 'day' : 'night';
-            appState.mapMode = nextMode;
-            localStorage.setItem('speedometer_map_mode', nextMode);
+        function updateThemeUI(mode) {
+            appState.mapMode = mode;
+            localStorage.setItem('speedometer_map_mode', mode);
+
+            const mapEl = document.getElementById('map');
+            const wrapperEl = document.getElementById('map-wrapper');
+            const navMapEl = document.getElementById('nav-map');
+            const navWrapperEl = document.getElementById('nav-map-wrapper');
 
             const mapThemeIcon = document.getElementById('map-theme-icon');
             const mapThemeText = document.getElementById('map-theme-text');
-            const mapEl = document.getElementById('map');
-            const wrapperEl = document.getElementById('map-wrapper');
+            const navMapThemeIcon = document.getElementById('nav-map-theme-icon');
+            const navMapThemeText = document.getElementById('nav-map-theme-text');
 
-            if (nextMode === 'day') {
+            if (mode === 'day') {
                 if (mapEl) mapEl.classList.add('day-mode');
                 if (wrapperEl) wrapperEl.classList.add('day-mode');
+                if (navMapEl) navMapEl.classList.add('day-mode');
+                if (navWrapperEl) navWrapperEl.classList.add('day-mode');
+
                 if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
                 if (mapThemeText) mapThemeText.innerText = 'Нощ';
+                if (navMapThemeIcon) navMapThemeIcon.innerText = '🌙';
+                if (navMapThemeText) navMapThemeText.innerText = 'Нощ';
+
+                if (appState.navMap && appState.navMapInitialized) {
+                    appState.navMap.setStyle('https://basemaps.cartocdn.com/gl/positron-gl-style/style.json');
+                }
             } else {
                 if (mapEl) mapEl.classList.remove('day-mode');
                 if (wrapperEl) wrapperEl.classList.remove('day-mode');
+                if (navMapEl) navMapEl.classList.remove('day-mode');
+                if (navWrapperEl) navWrapperEl.classList.remove('day-mode');
+
                 if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
                 if (mapThemeText) mapThemeText.innerText = 'Ден';
+                if (navMapThemeIcon) navMapThemeIcon.innerText = '☀️';
+                if (navMapThemeText) navMapThemeText.innerText = 'Ден';
+
+                if (appState.navMap && appState.navMapInitialized) {
+                    appState.navMap.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json');
+                }
             }
-            
-            // Redraw path line or custom marker color if needed
             updateMapPulseColor();
             drawOnewayStreets();
+        }
+
+        function toggleMapTheme() {
+            const nextMode = appState.mapMode === 'night' ? 'day' : 'night';
+            updateThemeUI(nextMode);
         }
 
         function updateMapPulseColor() {
@@ -2852,6 +2896,11 @@
                     navMapWrapper.style.display = 'block';
                     btnNavToggle.querySelector('span').innerText = 'Скрий Навигация';
                     initNavMap();
+                    // Ensure the animation loop runs for vector maps coordinates interpolation
+                    if (!appState.animationFrameId) {
+                        appState.lastFrameTime = Date.now();
+                        appState.animationFrameId = requestAnimationFrame(animateMapStep);
+                    }
                 } else {
                     navMapWrapper.style.display = 'none';
                     exitFullscreenNav();
@@ -3105,21 +3154,7 @@
 
             // Map theme loading
             appState.mapMode = localStorage.getItem('speedometer_map_mode') || 'night';
-            const mapEl = document.getElementById('map');
-            const wrapperEl = document.getElementById('map-wrapper');
-            const mapThemeIcon = document.getElementById('map-theme-icon');
-            const mapThemeText = document.getElementById('map-theme-text');
-            if (appState.mapMode === 'day') {
-                if (mapEl) mapEl.classList.add('day-mode');
-                if (wrapperEl) wrapperEl.classList.add('day-mode');
-                if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
-                if (mapThemeText) mapThemeText.innerText = 'Нощ';
-            } else {
-                if (mapEl) mapEl.classList.remove('day-mode');
-                if (wrapperEl) wrapperEl.classList.remove('day-mode');
-                if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
-                if (mapThemeText) mapThemeText.innerText = 'Ден';
-            }
+            updateThemeUI(appState.mapMode);
 
             // Always use standard OpenStreetMap tile layer (which renders one-way arrows)
             const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -3192,7 +3227,9 @@
         }
 
         function animateMapStep() {
-            if (!appState.mapInitialized || !appState.mapVisible) {
+            const leafletRunning = appState.mapInitialized && appState.mapVisible;
+            const navRunning = appState.navMapInitialized && appState.navMapVisible;
+            if (!leafletRunning && !navRunning) {
                 appState.animationFrameId = null;
                 return;
             }
@@ -3213,71 +3250,79 @@
             const t = 1 - Math.exp(-k * dt);
 
             // Interpolate position smoothly
-            appState.visualLat += (appState.targetLat - appState.visualLat) * t;
-            appState.visualLon += (appState.targetLon - appState.visualLon) * t;
+            if (appState.targetLat !== undefined && appState.targetLat !== null) {
+                appState.visualLat += (appState.targetLat - appState.visualLat) * t;
+            }
+            if (appState.targetLon !== undefined && appState.targetLon !== null) {
+                appState.visualLon += (appState.targetLon - appState.visualLon) * t;
+            }
 
             // Interpolate heading smoothly (shortest angular path)
-            let diff = appState.targetHeading - appState.visualHeading;
-            diff = ((diff + 180) % 360) - 180;
-            let currentHeading = appState.visualHeading + diff * t;
-            appState.visualHeading = (currentHeading + 360) % 360;
+            if (appState.targetHeading !== undefined && appState.targetHeading !== null) {
+                let diff = appState.targetHeading - appState.visualHeading;
+                diff = ((diff + 180) % 360) - 180;
+                let currentHeading = appState.visualHeading + diff * t;
+                appState.visualHeading = (currentHeading + 360) % 360;
+            }
 
             const latlng = [appState.visualLat, appState.visualLon];
 
-            if (appState.mapMarker) {
-                appState.mapMarker.setLatLng(latlng);
-            }
+            if (leafletRunning) {
+                if (appState.mapMarker) {
+                    appState.mapMarker.setLatLng(latlng);
+                }
 
-            if (appState.autoCenter && appState.map) {
-                let mapCenter = latlng;
-                if (document.body.classList.contains('fullscreen-map-active')) {
-                    const zoom = appState.map.getZoom();
-                    const latRad = appState.visualLat * Math.PI / 180;
-                    const metersPerPixel = 156543.03392 * Math.cos(latRad) / Math.pow(2, zoom);
-                    
-                    const wrapperEl = document.getElementById('map-wrapper');
-                    const wrapperHeight = wrapperEl ? wrapperEl.clientHeight : 600;
-                    const offsetPixels = wrapperHeight * 0.25; // 25% of height offset to put car at 1/4 from bottom
-                    const offsetMeters = offsetPixels * metersPerPixel;
-                    
-                    let targetRotHeading = appState.visualHeading;
-                    if (appState.currentSpeed <= 2 && (appState.lastValidHeading === null || appState.lastValidHeading === undefined)) {
-                        targetRotHeading = 0;
+                if (appState.autoCenter && appState.map) {
+                    let mapCenter = latlng;
+                    if (document.body.classList.contains('fullscreen-map-active')) {
+                        const zoom = appState.map.getZoom();
+                        const latRad = appState.visualLat * Math.PI / 180;
+                        const metersPerPixel = 156543.03392 * Math.cos(latRad) / Math.pow(2, zoom);
+                        
+                        const wrapperEl = document.getElementById('map-wrapper');
+                        const wrapperHeight = wrapperEl ? wrapperEl.clientHeight : 600;
+                        const offsetPixels = wrapperHeight * 0.25; // 25% of height offset to put car at 1/4 from bottom
+                        const offsetMeters = offsetPixels * metersPerPixel;
+                        
+                        let targetRotHeading = appState.visualHeading;
+                        if (appState.currentSpeed <= 2 && (appState.lastValidHeading === null || appState.lastValidHeading === undefined)) {
+                            targetRotHeading = 0;
+                        }
+                        
+                        const headingRad = targetRotHeading * Math.PI / 180;
+                        const dLat = (offsetMeters * Math.cos(headingRad)) / 111111;
+                        const dLon = (offsetMeters * Math.sin(headingRad)) / (111111 * Math.cos(latRad));
+                        
+                        mapCenter = [appState.visualLat + dLat, appState.visualLon + dLon];
                     }
-                    
-                    const headingRad = targetRotHeading * Math.PI / 180;
-                    const dLat = (offsetMeters * Math.cos(headingRad)) / 111111;
-                    const dLon = (offsetMeters * Math.sin(headingRad)) / (111111 * Math.cos(latRad));
-                    
-                    mapCenter = [appState.visualLat + dLat, appState.visualLon + dLon];
+                    appState.map.setView(mapCenter, appState.map.getZoom(), { animate: false });
                 }
-                appState.map.setView(mapCenter, appState.map.getZoom(), { animate: false });
-            }
 
-            const mapContainer = document.getElementById('map');
-            if (mapContainer) {
-                if (appState.autoCenter) {
-                    let rotHeading = appState.visualHeading;
-                    if (appState.currentSpeed <= 2 && (appState.lastValidHeading === null || appState.lastValidHeading === undefined)) {
-                        rotHeading = 0;
+                const mapContainer = document.getElementById('map');
+                if (mapContainer) {
+                    if (appState.autoCenter) {
+                        let rotHeading = appState.visualHeading;
+                        if (appState.currentSpeed <= 2 && (appState.lastValidHeading === null || appState.lastValidHeading === undefined)) {
+                            rotHeading = 0;
+                        }
+                        mapContainer.style.transform = `rotate(${-rotHeading}deg) scale(1.5)`;
+                    } else {
+                        mapContainer.style.transform = 'rotate(0deg) scale(1)';
                     }
-                    mapContainer.style.transform = `rotate(${-rotHeading}deg) scale(1.5)`;
-                } else {
-                    mapContainer.style.transform = 'rotate(0deg) scale(1)';
                 }
-            }
 
-            const beamEl = document.querySelector('.heading-beam');
-            if (beamEl) {
-                let beamHeading = appState.visualHeading;
-                if (appState.lastValidHeading !== null && appState.lastValidHeading !== undefined) {
-                    beamHeading = appState.lastValidHeading;
+                const beamEl = document.querySelector('.heading-beam');
+                if (beamEl) {
+                    let beamHeading = appState.visualHeading;
+                    if (appState.lastValidHeading !== null && appState.lastValidHeading !== undefined) {
+                        beamHeading = appState.lastValidHeading;
+                    }
+                    beamEl.style.transform = `rotate(${beamHeading}deg)`;
                 }
-                beamEl.style.transform = `rotate(${beamHeading}deg)`;
             }
 
             // Smoothly update MapLibre Navigation Map marker and camera
-            if (appState.navMapInitialized && appState.navMapVisible && appState.navMap) {
+            if (navRunning && appState.navMap) {
                 const navLngLat = [appState.visualLon, appState.visualLat];
                 
                 // Update navigation marker position
@@ -3302,10 +3347,8 @@
                         rotHeading = 0;
                     }
                     
-                    if (!appState.navMapHeight && appState.navMap) {
-                        appState.navMapHeight = appState.navMap.getContainer().clientHeight;
-                    }
-                    const topPadding = appState.navMapHeight ? appState.navMapHeight / 3 : 0;
+                    const height = appState.navMapHeight || appState.navMap.getContainer().clientHeight;
+                    const topPadding = height ? height / 3 : 0;
                     
                     appState.navMap.jumpTo({
                         center: navLngLat,
@@ -3320,7 +3363,9 @@
         }
 
         function updateMapLocation(lat, lon, isWrongWay = false) {
-            if (!appState.mapInitialized || !appState.mapVisible) return;
+            const leafletRunning = appState.mapInitialized && appState.mapVisible;
+            const navRunning = appState.navMapInitialized && appState.navMapVisible;
+            if (!leafletRunning && !navRunning) return;
 
             const snapped = snapToRoad(lat, lon);
             const displayLat = snapped.lat;
@@ -3384,10 +3429,14 @@
                 appState.pathCoordinates = appState.pathCoordinates.slice(keepStartIndex);
             }
 
-            appState.mapPath.setLatLngs(appState.pathCoordinates);
+            if (appState.mapPath && appState.mapInitialized) {
+                appState.mapPath.setLatLngs(appState.pathCoordinates);
+            }
 
             // Dynamically change map pulse color on wrong way or day/night mode
-            updateMapPulseColor();
+            if (leafletRunning) {
+                updateMapPulseColor();
+            }
 
             // Start animation loop if not running
             if (!appState.animationFrameId) {
@@ -4021,7 +4070,18 @@
                 if (recenterBtn) recenterBtn.classList.add('visible');
             });
 
+            appState.navMapHeight = document.getElementById('nav-map').clientHeight;
+            if (window.ResizeObserver) {
+                const resizeObserver = new ResizeObserver(entries => {
+                    for (let entry of entries) {
+                        appState.navMapHeight = entry.contentRect.height;
+                    }
+                });
+                resizeObserver.observe(document.getElementById('nav-map'));
+            }
+
             appState.navMapInitialized = true;
+            updateThemeUI(appState.mapMode);
         }
 
         function enterFullscreenNav() {
@@ -4092,48 +4152,7 @@
 
         function toggleNavTheme() {
             const nextMode = appState.mapMode === 'night' ? 'day' : 'night';
-            appState.mapMode = nextMode;
-            localStorage.setItem('speedometer_map_mode', nextMode);
-
-            // Sync with Leaflet maps mode
-            const mapThemeIcon = document.getElementById('map-theme-icon');
-            const mapThemeText = document.getElementById('map-theme-text');
-            const mapEl = document.getElementById('map');
-            const wrapperEl = document.getElementById('map-wrapper');
-
-            const navMapThemeIcon = document.getElementById('nav-map-theme-icon');
-            const navMapThemeText = document.getElementById('nav-map-theme-text');
-            
-            // Set styles for both maps
-            if (nextMode === 'day') {
-                if (mapEl) mapEl.classList.add('day-mode');
-                if (wrapperEl) wrapperEl.classList.add('day-mode');
-                if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
-                if (mapThemeText) mapThemeText.innerText = 'Нощ';
-
-                if (navMapThemeIcon) navMapThemeIcon.innerText = '🌙';
-                if (navMapThemeText) navMapThemeText.innerText = 'Нощ';
-                
-                if (appState.navMap) {
-                    appState.navMap.setStyle('https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'); // Day theme
-                }
-            } else {
-                if (mapEl) mapEl.classList.remove('day-mode');
-                if (wrapperEl) wrapperEl.classList.remove('day-mode');
-                if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
-                if (mapThemeText) mapThemeText.innerText = 'Ден';
-
-                if (navMapThemeIcon) navMapThemeIcon.innerText = '☀️';
-                if (navMapThemeText) navMapThemeText.innerText = 'Ден';
-                
-                if (appState.navMap) {
-                    appState.navMap.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'); // Night theme
-                }
-            }
-            
-            // Recenter/Redraw Leaflet assets
-            updateMapPulseColor();
-            drawOnewayStreets();
+            updateThemeUI(nextMode);
         }
 
         async function searchNavDestination() {
@@ -4229,6 +4248,7 @@
 
                 // Show turn-by-turn instruction card
                 document.getElementById('nav-instructions-overlay').style.display = 'flex';
+                document.body.classList.add('nav-routing-active');
                 
                 // Show stop button & update remaining times
                 updateNavigationUI(route.distance, route.duration);
@@ -4390,6 +4410,7 @@
             
             document.getElementById('nav-instructions-overlay').style.display = 'none';
             document.getElementById('nav-destination-input').value = '';
+            document.body.classList.remove('nav-routing-active');
         }
 
         function updateNavOverlaySpeed() {
