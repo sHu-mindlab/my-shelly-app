@@ -1,10 +1,12 @@
-const CACHE_NAME = 'speedometer-v29';
+const CACHE_NAME = 'speedometer-v30';
 const ASSETS_TO_CACHE = [
   './speedometer.html',
   './speedometer.webmanifest',
   './speedometer-icon.svg',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css',
+  'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js',
   'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;600;700&display=swap'
 ];
 

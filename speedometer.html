@@ -20,6 +20,8 @@
 
     <!-- Leaflet CSS for Map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- MapLibre CSS for Navigation Map -->
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
 
     <style>
         :root {
@@ -1065,6 +1067,401 @@
             display: none !important;
         }
 
+        /* Navigation Section styling */
+        .navigation-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .navigation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Fullscreen Navigation mode styles */
+        body.fullscreen-nav-active {
+            overflow: hidden !important;
+        }
+
+        body.fullscreen-nav-active .container {
+            display: block !important;
+            position: static !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            height: auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        body.fullscreen-nav-active .container > *:not(.navigation-section) {
+            display: none !important;
+        }
+
+        body.fullscreen-nav-active .navigation-section {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            z-index: 9999 !important;
+            border-radius: 0 !important;
+            border: none !important;
+            background: #000 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            box-shadow: none !important;
+        }
+
+        body.fullscreen-nav-active .navigation-header {
+            display: none !important;
+        }
+
+        body.fullscreen-nav-active #nav-map-wrapper {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            border-radius: 0 !important;
+            border: none !important;
+            display: block !important;
+        }
+
+        body.fullscreen-nav-active #nav-map-preview-overlay {
+            display: none;
+        }
+
+        /* Show the fullscreen nav controls */
+        body.fullscreen-nav-active .map-overlay-btn:not(.recenter-btn) {
+            display: flex;
+        }
+
+        body.fullscreen-nav-active #nav-map-back-btn {
+            top: auto !important;
+            bottom: calc(5px + env(safe-area-inset-bottom)) !important;
+            left: calc(10px + env(safe-area-inset-left)) !important;
+            right: auto !important;
+        }
+
+        body.fullscreen-nav-active #nav-map-theme-toggle-btn {
+            top: calc(10px + env(safe-area-inset-top)) !important;
+            left: calc(10px + env(safe-area-inset-left)) !important;
+            right: auto !important;
+        }
+
+        body.fullscreen-nav-active #nav-map-3d-btn {
+            top: calc(10px + env(safe-area-inset-top)) !important;
+            left: calc(85px + env(safe-area-inset-left)) !important;
+            right: auto !important;
+            display: flex !important;
+        }
+
+        body.fullscreen-nav-active #nav-map-follow-btn {
+            top: calc(10px + env(safe-area-inset-top)) !important;
+            left: calc(150px + env(safe-area-inset-left)) !important;
+            right: auto !important;
+            display: flex !important;
+        }
+
+        body.fullscreen-nav-active #nav-map-recenter-btn.visible {
+            display: flex !important;
+            bottom: calc(5px + env(safe-area-inset-bottom)) !important;
+            right: calc(10px + env(safe-area-inset-right)) !important;
+            left: auto !important;
+            transform: none !important;
+        }
+
+        body.fullscreen-nav-active #nav-map-recenter-btn.visible:hover {
+            transform: translateY(-1px) !important;
+        }
+
+        body.fullscreen-nav-active.wrong-way-alert #nav-map-wrong-way-banner {
+            display: block;
+        }
+
+        body.fullscreen-nav-active #nav-map-wrapper .map-bottom-hud {
+            display: flex;
+            flex-direction: row-reverse !important;
+            align-items: center;
+            top: calc(10px + env(safe-area-inset-top)) !important;
+            right: calc(10px + env(safe-area-inset-right)) !important;
+            bottom: auto !important;
+            left: auto !important;
+        }
+
+        body.fullscreen-nav-active.speed-alert #nav-map-speed-val {
+            color: #ff3b5c !important;
+            text-shadow: 0 0 15px rgba(255, 59, 92, 0.6) !important;
+        }
+
+        body.fullscreen-nav-active.wrong-way-alert #nav-map-speed-val {
+            color: #ff3b5c !important;
+            text-shadow: 0 0 15px rgba(255, 59, 92, 0.6) !important;
+        }
+
+        body.fullscreen-nav-active.speed-alert #nav-map-limit-widget .map-speed-limit-sign {
+            animation: limit-sign-pulse 0.8s infinite alternate;
+        }
+
+        /* Search Container CSS */
+        .nav-search-container {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1010;
+            display: flex;
+            gap: 8px;
+            width: 90%;
+            max-width: 420px;
+            pointer-events: auto;
+        }
+
+        body.fullscreen-nav-active .nav-search-container {
+            top: calc(70px + env(safe-area-inset-top));
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 20px);
+            max-width: 480px;
+        }
+
+        .nav-input {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-light);
+            font-size: 0.9rem;
+            outline: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s;
+        }
+
+        .nav-input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 8px 24px rgba(6, 182, 212, 0.25);
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            border-radius: 14px;
+            border: none;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Results Dropdown styling */
+        .nav-results-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            width: 100%;
+            max-height: 240px;
+            overflow-y: auto;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            z-index: 1011;
+        }
+
+        .nav-result-item {
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-result-item:hover {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-cyan);
+        }
+
+        /* Turn by Turn Instructions styling */
+        .nav-instructions-overlay {
+            position: absolute;
+            top: 75px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 420px;
+            background: rgba(16, 185, 129, 0.95); /* Emerald neon color scheme */
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 10px 32px rgba(16, 185, 129, 0.3);
+            z-index: 1005;
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            gap: 14px;
+            color: #fff;
+            pointer-events: auto;
+            animation: slide-down-nav 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        body.fullscreen-nav-active .nav-instructions-overlay {
+            top: calc(130px + env(safe-area-inset-top));
+            width: calc(100% - 20px);
+            max-width: 480px;
+        }
+
+        @keyframes slide-down-nav {
+            0% { transform: translate(-50%, -10px); opacity: 0; }
+            100% { transform: translate(-50%, 0); opacity: 1; }
+        }
+
+        .nav-instruction-icon {
+            font-size: 1.8rem;
+            font-weight: 900;
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .nav-instruction-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        #nav-instruction-main {
+            font-weight: 700;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+
+        #nav-instruction-sub {
+            font-size: 0.75rem;
+            opacity: 0.85;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+
+        .nav-meta-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            font-family: var(--font-digital);
+            font-weight: 700;
+            font-size: 1rem;
+            min-width: 75px;
+            line-height: 1.2;
+        }
+
+        #nav-remaining-dist {
+            color: #fff;
+        }
+
+        #nav-remaining-time {
+            color: #eab308;
+            font-size: 0.95rem;
+        }
+
+        .nav-close-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .nav-close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        /* 3D and follow status active styles */
+        .map-overlay-btn.nav-3d-btn.active, .map-overlay-btn.nav-follow-btn.active {
+            background: rgba(6, 182, 212, 0.25) !important;
+            border-color: var(--accent-cyan) !important;
+            color: var(--accent-cyan) !important;
+            box-shadow: 0 0 12px var(--accent-cyan-glow) !important;
+        }
+
+        /* MapLibre custom marker */
+        .nav-user-location-container {
+            width: 42px;
+            height: 42px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .nav-user-pulse {
+            width: 16px;
+            height: 16px;
+            background: var(--accent-cyan);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-cyan-glow);
+            z-index: 2;
+        }
+
+        .nav-user-heading-beam {
+            position: absolute;
+            width: 42px;
+            height: 42px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+            transform-origin: center center;
+            transition: transform 0.2s ease-out;
+        }
+
+        #nav-map {
+            width: 100%;
+            height: 100%;
+            background: #0f172a;
+            position: absolute;
+            top: 0;
+            left: 0;
+            border-radius: 18px;
+        }
+
         /* HUD MODE CSS STYLES */
         body.hud-mode {
             background-color: #000000 !important;
@@ -1532,6 +1929,106 @@
                     <h4 style="margin-bottom: 4px;">Картата е офлайн</h4>
                     <span class="offline-map-text">Уредите работят, но зареждането на географската карта изисква интернет връзка.</span>
                 </div>
+        </div>
+
+        <!-- Navigation Panel -->
+        <div class="glass-panel navigation-section">
+            <div class="navigation-header">
+                <div class="setting-label">
+                    <span>Навигация</span>
+                    <span class="setting-desc">Векторна 3D карта с навигиране в реално време</span>
+                </div>
+                <button class="map-toggle-btn" id="btn-nav-toggle">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon>
+                        <line x1="9" y1="3" x2="9" y2="18"></line>
+                        <line x1="15" y1="6" x2="15" y2="21"></line>
+                    </svg>
+                    <span>Покажи Навигация</span>
+                </button>
+            </div>
+            
+            <div class="map-wrapper" id="nav-map-wrapper">
+                <div id="nav-map"></div>
+                <div class="map-preview-overlay" id="nav-map-preview-overlay" title="Кликнете за цял екран"></div>
+                
+                <!-- Search bar for destination (overlay on top of the map) -->
+                <div class="nav-search-container" id="nav-search-container">
+                    <input type="text" id="nav-destination-input" placeholder="Въведете дестинация..." class="nav-input">
+                    <button class="nav-btn btn-primary" id="btn-nav-search">Търси</button>
+                    <div class="nav-results-dropdown" id="nav-results-dropdown" style="display: none;"></div>
+                </div>
+
+                <!-- Turn by turn instruction overlay -->
+                <div class="nav-instructions-overlay" id="nav-instructions-overlay" style="display: none;">
+                    <div class="nav-instruction-icon" id="nav-instruction-icon">➔</div>
+                    <div class="nav-instruction-text">
+                        <div id="nav-instruction-main">Движете се направо</div>
+                        <div id="nav-instruction-sub">Следващ завой: --</div>
+                    </div>
+                    <div class="nav-meta-info">
+                        <span id="nav-remaining-dist">-- км</span>
+                        <span id="nav-remaining-time">-- мин</span>
+                    </div>
+                    <button class="nav-close-btn" id="btn-nav-stop" title="Спиране на навигацията">✕</button>
+                </div>
+
+                <!-- Floating Controls Overlays (Shown only in fullscreen mode) -->
+                <button class="map-overlay-btn back-btn" id="nav-map-back-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    <span>Назад</span>
+                </button>
+
+                <button class="map-overlay-btn theme-toggle-btn" id="nav-map-theme-toggle-btn">
+                    <span id="nav-map-theme-icon">☀️</span>
+                    <span id="nav-map-theme-text">Ден</span>
+                </button>
+
+                <!-- MapLibre specific controls: 3D toggle, follow orientation toggle -->
+                <button class="map-overlay-btn nav-3d-btn active" id="nav-map-3d-btn" style="right: 170px;">
+                    <span>3D</span>
+                </button>
+                <button class="map-overlay-btn nav-follow-btn active" id="nav-map-follow-btn" style="right: 230px;">
+                    <span>🧭 Следи</span>
+                </button>
+
+                <button class="map-overlay-btn recenter-btn" id="nav-map-recenter-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <line x1="12" y1="1" x2="12" y2="4"></line>
+                        <line x1="12" y1="20" x2="12" y2="23"></line>
+                        <line x1="1" y1="12" x2="4" y2="12"></line>
+                        <line x1="20" y1="12" x2="23" y2="12"></line>
+                    </svg>
+                    <span>Центрирай</span>
+                </button>
+
+                <div class="map-wrong-way-banner" id="nav-map-wrong-way-banner">
+                    ⚠️ НАСРЕЩНО ДВИЖЕНИЕ! ⚠️
+                </div>
+
+                <!-- Floating HUD telemetry info -->
+                <div class="map-bottom-hud">
+                    <div class="map-speed-widget">
+                        <span class="map-speed-val" id="nav-map-speed-val">0</span>
+                        <span class="map-speed-unit" id="nav-map-speed-unit">км/ч</span>
+                    </div>
+
+                    <div class="map-limit-widget" id="nav-map-limit-widget">
+                        <div class="map-speed-limit-sign">
+                            <span id="nav-map-limit-val">50</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="offline-map-overlay" id="nav-map-offline-overlay">
+                    <div class="offline-map-icon">📡</div>
+                    <h4 style="margin-bottom: 4px;">Картата е офлайн</h4>
+                    <span class="offline-map-text">Навигацията изисква интернет връзка за зареждане на плочки и маршрути.</span>
+                </div>
             </div>
         </div>
 
@@ -1654,6 +2151,9 @@
     <!-- Leaflet JS for Map -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+    <!-- MapLibre JS for Navigation Map -->
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
     <!-- App Logic -->
     <script>
         // --- CONFIG & APP STATE ---
@@ -1706,7 +2206,21 @@
             prevLon: null,
             prevHeading: null,
             lastUpdateTime: null,
-            estimatedInterval: 1000
+            estimatedInterval: 1000,
+            
+            // Navigation map states
+            navMapInitialized: false,
+            navMapVisible: false,
+            navMap: null,
+            navMarker: null,
+            navDestination: null,
+            navRouteGeometry: null,
+            navRouteSteps: [],
+            navActive: false,
+            navFollow: true,
+            nav3D: true,
+            navRouteSimIndex: 0,
+            navRouteSimProgress: 0
         };
 
         // OSM Overpass data caching
@@ -2264,6 +2778,127 @@
             });
         }
 
+        // --- NAVIGATION MAP EVENT LISTENERS ---
+        const btnNavToggle = document.getElementById('btn-nav-toggle');
+        const navMapWrapper = document.getElementById('nav-map-wrapper');
+        if (btnNavToggle && navMapWrapper) {
+            btnNavToggle.addEventListener('click', () => {
+                appState.navMapVisible = !appState.navMapVisible;
+                if (appState.navMapVisible) {
+                    navMapWrapper.style.display = 'block';
+                    btnNavToggle.querySelector('span').innerText = 'Скрий Навигация';
+                    initNavMap();
+                } else {
+                    navMapWrapper.style.display = 'none';
+                    exitFullscreenNav();
+                    btnNavToggle.querySelector('span').innerText = 'Покажи Навигация';
+                }
+            });
+        }
+
+        // Tap on navigation preview overlay to enter fullscreen
+        const navMapPreviewOverlay = document.getElementById('nav-map-preview-overlay');
+        if (navMapPreviewOverlay) {
+            addTapListener(navMapPreviewOverlay, () => {
+                enterFullscreenNav();
+            });
+        }
+
+        // Exit fullscreen nav
+        const navMapBackBtn = document.getElementById('nav-map-back-btn');
+        if (navMapBackBtn) {
+            addTapListener(navMapBackBtn, () => {
+                exitFullscreenNav();
+            });
+        }
+
+        // Toggle nav theme
+        const navMapThemeToggleBtn = document.getElementById('nav-map-theme-toggle-btn');
+        if (navMapThemeToggleBtn) {
+            addTapListener(navMapThemeToggleBtn, () => {
+                toggleNavTheme();
+            });
+        }
+
+        // Recenter nav map
+        const navMapRecenterBtn = document.getElementById('nav-map-recenter-btn');
+        if (navMapRecenterBtn) {
+            addTapListener(navMapRecenterBtn, () => {
+                appState.navFollow = true;
+                const followBtn = document.getElementById('nav-map-follow-btn');
+                if (followBtn) followBtn.classList.add('active');
+                navMapRecenterBtn.classList.remove('visible');
+                
+                if (appState.lastLat && appState.lastLon && appState.navMap) {
+                    appState.navMap.easeTo({
+                        center: [appState.lastLon, appState.lastLat],
+                        zoom: 16
+                    });
+                }
+            });
+        }
+
+        // Toggle 3D mode
+        const navMap3dBtn = document.getElementById('nav-map-3d-btn');
+        if (navMap3dBtn) {
+            addTapListener(navMap3dBtn, () => {
+                appState.nav3D = !appState.nav3D;
+                if (appState.nav3D) {
+                    navMap3dBtn.classList.add('active');
+                } else {
+                    navMap3dBtn.classList.remove('active');
+                }
+                if (appState.navMap) {
+                    appState.navMap.easeTo({ pitch: appState.nav3D ? 60 : 0 });
+                }
+            });
+        }
+
+        // Toggle Follow orientation mode
+        const navMapFollowBtn = document.getElementById('nav-map-follow-btn');
+        if (navMapFollowBtn) {
+            addTapListener(navMapFollowBtn, () => {
+                appState.navFollow = !appState.navFollow;
+                if (appState.navFollow) {
+                    navMapFollowBtn.classList.add('active');
+                    if (navMapRecenterBtn) navMapRecenterBtn.classList.remove('visible');
+                } else {
+                    navMapFollowBtn.classList.remove('active');
+                    if (navMapRecenterBtn) navMapRecenterBtn.classList.add('visible');
+                }
+            });
+        }
+
+        // Search destination buttons
+        const btnNavSearch = document.getElementById('btn-nav-search');
+        if (btnNavSearch) {
+            btnNavSearch.addEventListener('click', searchNavDestination);
+        }
+
+        const navDestinationInput = document.getElementById('nav-destination-input');
+        if (navDestinationInput) {
+            navDestinationInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    searchNavDestination();
+                }
+            });
+        }
+
+        // Stop/close navigation
+        const btnNavStop = document.getElementById('btn-nav-stop');
+        if (btnNavStop) {
+            btnNavStop.addEventListener('click', stopNavigation);
+        }
+
+        // Hide results dropdown on click outside
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('nav-results-dropdown');
+            const searchContainer = document.getElementById('nav-search-container');
+            if (dropdown && searchContainer && !searchContainer.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
         // Handle window resize / orientation change to ensure map centers correctly
         window.addEventListener('resize', () => {
             if (appState.map && appState.mapInitialized && appState.mapVisible) {
@@ -2282,6 +2917,11 @@
                         }
                     }
                 }, 350);
+            }
+            
+            // Resize MapLibre Navigation Map
+            if (appState.navMap && appState.navMapInitialized && appState.navMapVisible) {
+                appState.navMap.resize();
             }
         });
 
@@ -2543,6 +3183,40 @@
                     beamHeading = appState.lastValidHeading;
                 }
                 beamEl.style.transform = `rotate(${beamHeading}deg)`;
+            }
+
+            // Smoothly update MapLibre Navigation Map marker and camera
+            if (appState.navMapInitialized && appState.navMapVisible && appState.navMap) {
+                const navLngLat = [appState.visualLon, appState.visualLat];
+                
+                // Update navigation marker position
+                if (appState.navMarker) {
+                    appState.navMarker.setLngLat(navLngLat);
+                }
+                
+                // Rotate navigation marker heading beam
+                const navBeamEl = document.querySelector('.nav-user-heading-beam');
+                if (navBeamEl) {
+                    let beamHeading = appState.visualHeading;
+                    if (appState.lastValidHeading !== null && appState.lastValidHeading !== undefined) {
+                        beamHeading = appState.lastValidHeading;
+                    }
+                    navBeamEl.style.transform = `rotate(${beamHeading}deg)`;
+                }
+
+                // Smooth camera follow
+                if (appState.navFollow) {
+                    let rotHeading = appState.visualHeading;
+                    if (appState.currentSpeed <= 2 && (appState.lastValidHeading === null || appState.lastValidHeading === undefined)) {
+                        rotHeading = 0;
+                    }
+                    
+                    appState.navMap.jumpTo({
+                        center: navLngLat,
+                        bearing: rotHeading,
+                        pitch: appState.nav3D ? 60 : 0
+                    });
+                }
             }
 
             appState.animationFrameId = requestAnimationFrame(animateMapStep);
@@ -3121,6 +3795,694 @@
             }
         }
 
+        // --- MAPLIBRE 3D NAVIGATION LOGIC ---
+        function initNavMap() {
+            if (appState.navMapInitialized) return;
+            
+            // Check online state
+            const offlineOverlay = document.getElementById('nav-map-offline-overlay');
+            if (!navigator.onLine) {
+                if (offlineOverlay) offlineOverlay.classList.add('active');
+            }
+            window.addEventListener('online', () => {
+                if (offlineOverlay) offlineOverlay.classList.remove('active');
+            });
+            window.addEventListener('offline', () => {
+                if (offlineOverlay) offlineOverlay.classList.add('active');
+            });
+
+            const startLat = appState.lastLat || 42.6977;
+            const startLon = appState.lastLon || 23.3219;
+
+            appState.navMap = new maplibregl.Map({
+                container: 'nav-map',
+                style: appState.mapMode === 'day' 
+                    ? 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+                    : 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+                center: [startLon, startLat],
+                zoom: 16,
+                pitch: 60,
+                bearing: 0,
+                attributionControl: false
+            });
+
+            // Create custom location marker element
+            const markerEl = document.createElement('div');
+            markerEl.className = 'nav-user-location-container';
+            markerEl.innerHTML = `
+                <div class="nav-user-heading-beam">
+                    <svg width="42" height="42" viewBox="0 0 42 42">
+                        <defs>
+                            <linearGradient id="navBeamGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                                <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.6"/>
+                                <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.0"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M 21 21 L 11 0 A 21 21 0 0 1 31 0 Z" fill="url(#navBeamGrad)" />
+                    </svg>
+                </div>
+                <div class="nav-user-pulse"></div>
+            `;
+            
+            appState.navMarker = new maplibregl.Marker({ element: markerEl })
+                .setLngLat([startLon, startLat])
+                .addTo(appState.navMap);
+
+            appState.navMap.on('load', () => {
+                // Route path line source
+                appState.navMap.addSource('route', {
+                    'type': 'geojson',
+                    'data': {
+                        'type': 'Feature',
+                        'properties': {},
+                        'geometry': {
+                            'type': 'LineString',
+                            'coordinates': []
+                        }
+                    }
+                });
+                
+                // Add route line layer
+                appState.navMap.addLayer({
+                    'id': 'route-line',
+                    'type': 'line',
+                    'source': 'route',
+                    'layout': {
+                        'line-join': 'round',
+                        'line-cap': 'round'
+                    },
+                    'paint': {
+                        'line-color': '#10b981', // Emerald green route
+                        'line-width': 7,
+                        'line-opacity': 0.85
+                    }
+                });
+
+                // Add 3D buildings extrusion layer
+                try {
+                    appState.navMap.addLayer({
+                        'id': '3d-buildings',
+                        'source': 'openmaptiles',
+                        'source-layer': 'building',
+                        'type': 'fill-extrusion',
+                        'minzoom': 15,
+                        'paint': {
+                            'fill-extrusion-color': '#1e293b',
+                            'fill-extrusion-height': ['get', 'render_height'],
+                            'fill-extrusion-base': ['get', 'render_min_height'],
+                            'fill-extrusion-opacity': 0.65
+                        }
+                    });
+                } catch (e) {
+                    console.warn("Could not load 3D buildings layer (might not exist in this style source)", e);
+                }
+            });
+
+            // Map manual interaction listener (disable auto-centering on drag)
+            appState.navMap.on('dragstart', () => {
+                appState.navFollow = false;
+                const followBtn = document.getElementById('nav-map-follow-btn');
+                if (followBtn) followBtn.classList.remove('active');
+                
+                const recenterBtn = document.getElementById('nav-map-recenter-btn');
+                if (recenterBtn) recenterBtn.classList.add('visible');
+            });
+            appState.navMap.on('pitchstart', () => {
+                appState.navFollow = false;
+                const followBtn = document.getElementById('nav-map-follow-btn');
+                if (followBtn) followBtn.classList.remove('active');
+                
+                const recenterBtn = document.getElementById('nav-map-recenter-btn');
+                if (recenterBtn) recenterBtn.classList.add('visible');
+            });
+            appState.navMap.on('zoomstart', () => {
+                appState.navFollow = false;
+                const followBtn = document.getElementById('nav-map-follow-btn');
+                if (followBtn) followBtn.classList.remove('active');
+                
+                const recenterBtn = document.getElementById('nav-map-recenter-btn');
+                if (recenterBtn) recenterBtn.classList.add('visible');
+            });
+
+            appState.navMapInitialized = true;
+        }
+
+        function enterFullscreenNav() {
+            document.body.classList.add('fullscreen-nav-active');
+            
+            // Sync theme toggle button states
+            const navMapThemeIcon = document.getElementById('nav-map-theme-icon');
+            const navMapThemeText = document.getElementById('nav-map-theme-text');
+            if (appState.mapMode === 'day') {
+                if (navMapThemeIcon) navMapThemeIcon.innerText = '🌙';
+                if (navMapThemeText) navMapThemeText.innerText = 'Нощ';
+            } else {
+                if (navMapThemeIcon) navMapThemeIcon.innerText = '☀️';
+                if (navMapThemeText) navMapThemeText.innerText = 'Ден';
+            }
+
+            if (appState.navMap) {
+                setTimeout(() => {
+                    appState.navMap.resize();
+                    if (appState.lastLat && appState.lastLon) {
+                        appState.navMap.jumpTo({ center: [appState.lastLon, appState.lastLat] });
+                    }
+                }, 200);
+            }
+            updateNavOverlaySpeed();
+        }
+
+        function exitFullscreenNav() {
+            document.body.classList.remove('fullscreen-nav-active');
+            if (appState.navMap) {
+                setTimeout(() => {
+                    appState.navMap.resize();
+                }, 100);
+            }
+        }
+
+        function toggleNavTheme() {
+            const nextMode = appState.mapMode === 'night' ? 'day' : 'night';
+            appState.mapMode = nextMode;
+            localStorage.setItem('speedometer_map_mode', nextMode);
+
+            // Sync with Leaflet maps mode
+            const mapThemeIcon = document.getElementById('map-theme-icon');
+            const mapThemeText = document.getElementById('map-theme-text');
+            const mapEl = document.getElementById('map');
+            const wrapperEl = document.getElementById('map-wrapper');
+
+            const navMapThemeIcon = document.getElementById('nav-map-theme-icon');
+            const navMapThemeText = document.getElementById('nav-map-theme-text');
+            
+            // Set styles for both maps
+            if (nextMode === 'day') {
+                if (mapEl) mapEl.classList.add('day-mode');
+                if (wrapperEl) wrapperEl.classList.add('day-mode');
+                if (mapThemeIcon) mapThemeIcon.innerText = '🌙';
+                if (mapThemeText) mapThemeText.innerText = 'Нощ';
+
+                if (navMapThemeIcon) navMapThemeIcon.innerText = '🌙';
+                if (navMapThemeText) navMapThemeText.innerText = 'Нощ';
+                
+                if (appState.navMap) {
+                    appState.navMap.setStyle('https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'); // Day theme
+                }
+            } else {
+                if (mapEl) mapEl.classList.remove('day-mode');
+                if (wrapperEl) wrapperEl.classList.remove('day-mode');
+                if (mapThemeIcon) mapThemeIcon.innerText = '☀️';
+                if (mapThemeText) mapThemeText.innerText = 'Ден';
+
+                if (navMapThemeIcon) navMapThemeIcon.innerText = '☀️';
+                if (navMapThemeText) navMapThemeText.innerText = 'Ден';
+                
+                if (appState.navMap) {
+                    appState.navMap.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'); // Night theme
+                }
+            }
+            
+            // Recenter/Redraw Leaflet assets
+            updateMapPulseColor();
+            drawOnewayStreets();
+        }
+
+        async function searchNavDestination() {
+            const inputVal = document.getElementById('nav-destination-input').value.trim();
+            if (!inputVal) return;
+
+            const dropdown = document.getElementById('nav-results-dropdown');
+            dropdown.innerHTML = '<div class="nav-result-item" style="cursor: default; text-align: center;">Търсене...</div>';
+            dropdown.style.display = 'flex';
+
+            // Query OSM Nominatim (prefer results in Bulgaria)
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(inputVal)}&countrycodes=bg&limit=5`;
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Accept-Language': 'bg' }
+                });
+                if (!response.ok) throw new Error('Nominatim error');
+                const results = await response.json();
+                
+                dropdown.innerHTML = '';
+                if (results.length === 0) {
+                    dropdown.innerHTML = '<div class="nav-result-item" style="cursor: default; text-align: center;">Няма намерени резултати</div>';
+                    return;
+                }
+                
+                results.forEach(res => {
+                    const item = document.createElement('div');
+                    item.className = 'nav-result-item';
+                    item.innerText = res.display_name;
+                    item.addEventListener('click', () => {
+                        dropdown.style.display = 'none';
+                        document.getElementById('nav-destination-input').value = res.display_name;
+                        
+                        const lat = parseFloat(res.lat);
+                        const lon = parseFloat(res.lon);
+                        
+                        appState.navDestination = { lat, lon, name: res.display_name };
+                        
+                        // Recalculate route starting from current location
+                        let startLat = appState.lastLat || 42.6977;
+                        let startLon = appState.lastLon || 23.3219;
+                        calculateNavRoute(startLat, startLon, lat, lon);
+                    });
+                    dropdown.appendChild(item);
+                });
+            } catch (e) {
+                console.error(e);
+                dropdown.innerHTML = '<div class="nav-result-item" style="cursor: default; text-align: center; color: var(--accent-rose);">Възникна грешка при търсенето</div>';
+            }
+        }
+
+        async function calculateNavRoute(startLat, startLon, endLat, endLon) {
+            // Query OSRM Driving Route API
+            const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?geometries=geojson&overview=full&steps=true`;
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('OSRM Route error');
+                const data = await response.json();
+                
+                if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+                    alert('Не беше намерен подходящ маршрут!');
+                    return;
+                }
+                
+                const route = data.routes[0];
+                appState.navRouteGeometry = route.geometry.coordinates; // array of [lon, lat]
+                appState.navRouteSteps = route.legs[0].steps;
+                appState.navActive = true;
+                appState.navRouteSimIndex = 0;
+                appState.navRouteSimProgress = 0;
+                appState.navRouteSimCoordIndex = 0; // Reset simulation coordinate pointer
+
+                // Update MapLibre source
+                if (appState.navMap) {
+                    const source = appState.navMap.getSource('route');
+                    if (source) {
+                        source.setData({
+                            'type': 'Feature',
+                            'properties': {},
+                            'geometry': route.geometry
+                        });
+                    }
+                    
+                    // Fit map bounds to the route
+                    const coordinates = route.geometry.coordinates;
+                    const bounds = coordinates.reduce((acc, coord) => {
+                        return acc.extend(coord);
+                    }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+                    
+                    appState.navMap.fitBounds(bounds, { padding: 40 });
+                }
+
+                // Show turn-by-turn instruction card
+                document.getElementById('nav-instructions-overlay').style.display = 'flex';
+                
+                // Show stop button & update remaining times
+                updateNavigationUI(route.distance, route.duration);
+                updateNextInstruction();
+                
+            } catch (e) {
+                console.error(e);
+                alert('Неуспешно изчисляване на маршрута. Проверете интернет връзката си.');
+            }
+        }
+
+        function updateNavigationUI(distanceMeters, durationSeconds) {
+            const distEl = document.getElementById('nav-remaining-dist');
+            const timeEl = document.getElementById('nav-remaining-time');
+            
+            let distStr = "";
+            if (distanceMeters >= 1000) {
+                distStr = (distanceMeters / 1000).toFixed(1) + ' км';
+            } else {
+                distStr = Math.round(distanceMeters) + ' м';
+            }
+            
+            let mins = Math.round(durationSeconds / 60);
+            let timeStr = "";
+            if (mins >= 60) {
+                let hrs = Math.floor(mins / 60);
+                let remMins = mins % 60;
+                timeStr = hrs + ' ч ' + remMins + ' м';
+            } else {
+                timeStr = mins + ' мин';
+            }
+            
+            if (distEl) distEl.innerText = distStr;
+            if (timeEl) timeEl.innerText = timeStr;
+        }
+
+        // Dictionary for translation of OSRM instructions
+        const maneuverTranslation = {
+            'turn': {
+                'left': 'Завийте наляво',
+                'right': 'Завийте надясно',
+                'sharp left': 'Завийте рязко наляво',
+                'sharp right': 'Завийте рязко надясно',
+                'slight left': 'Леко вляво',
+                'slight right': 'Леко вдясно'
+            },
+            'new name': 'Продължете по',
+            'continue': 'Продължете напред',
+            'merge': 'Слейте се с пътя',
+            'roundabout': 'Навлезте в кръговото движение',
+            'rotary': 'Навлезте в кръговото движение',
+            'off ramp': 'Излезте от рампата',
+            'on ramp': 'Навлезте в рампата',
+            'fork': 'Разклонение',
+            'arrive': 'Пристигане на дестинацията'
+        };
+
+        function translateInstruction(step) {
+            const man = step.maneuver;
+            const type = man.type;
+            const modifier = man.modifier;
+            const street = step.name || step.ref;
+            
+            let actionText = 'Движете се направо';
+            
+            if (type === 'arrive') {
+                return 'Пристигане на дестинацията';
+            }
+            
+            if (maneuverTranslation[type]) {
+                if (typeof maneuverTranslation[type] === 'object' && modifier) {
+                    actionText = maneuverTranslation[type][modifier] || maneuverTranslation[type]['left'] || 'Завийте';
+                } else {
+                    actionText = maneuverTranslation[type];
+                }
+            }
+            
+            if (street) {
+                return `${actionText} по ${street}`;
+            } else {
+                return actionText;
+            }
+        }
+
+        function updateNextInstruction() {
+            if (!appState.navActive || appState.navRouteSteps.length === 0) return;
+            
+            // Find current instruction step based on user progress
+            const stepIndex = appState.navRouteSimIndex || 0;
+            const currentStep = appState.navRouteSteps[stepIndex];
+            const nextStep = appState.navRouteSteps[stepIndex + 1];
+            
+            if (!currentStep) return;
+
+            const mainTextEl = document.getElementById('nav-instruction-main');
+            const subTextEl = document.getElementById('nav-instruction-sub');
+            const iconEl = document.getElementById('nav-instruction-icon');
+            
+            const instructionText = translateInstruction(currentStep);
+            if (mainTextEl) mainTextEl.innerText = instructionText;
+            
+            // Handle next maneuver subtext
+            if (nextStep) {
+                const nextText = translateInstruction(nextStep);
+                let nextDist = "";
+                // Approximate distance to next step
+                if (currentStep.distance) {
+                    nextDist = currentStep.distance >= 1000 
+                        ? (currentStep.distance / 1000).toFixed(1) + ' км' 
+                        : Math.round(currentStep.distance) + ' м';
+                }
+                if (subTextEl) subTextEl.innerText = `След ${nextDist}: ${nextText}`;
+            } else {
+                if (subTextEl) subTextEl.innerText = 'Приближаване на целта';
+            }
+            
+            // Set instruction icon
+            if (iconEl) {
+                const modifier = currentStep.maneuver.modifier || '';
+                const type = currentStep.maneuver.type;
+                if (type === 'arrive') {
+                    iconEl.innerText = '🏁';
+                } else if (modifier.includes('right')) {
+                    iconEl.innerText = '➔';
+                    iconEl.style.transform = 'rotate(0deg)';
+                } else if (modifier.includes('left')) {
+                    iconEl.innerText = '➔';
+                    iconEl.style.transform = 'rotate(180deg)';
+                } else if (type === 'roundabout' || type === 'rotary') {
+                    iconEl.innerText = '↻';
+                    iconEl.style.transform = 'none';
+                } else {
+                    iconEl.innerText = '↑';
+                    iconEl.style.transform = 'none';
+                }
+            }
+        }
+
+        function stopNavigation() {
+            appState.navActive = false;
+            appState.navDestination = null;
+            appState.navRouteGeometry = null;
+            appState.navRouteSteps = [];
+            
+            // Clear route line from MapLibre
+            if (appState.navMap) {
+                const source = appState.navMap.getSource('route');
+                if (source) {
+                    source.setData({
+                        'type': 'Feature',
+                        'properties': {},
+                        'geometry': {
+                            'type': 'LineString',
+                            'coordinates': []
+                        }
+                    });
+                }
+            }
+            
+            document.getElementById('nav-instructions-overlay').style.display = 'none';
+            document.getElementById('nav-destination-input').value = '';
+        }
+
+        function updateNavOverlaySpeed() {
+            if (!document.body.classList.contains('fullscreen-nav-active')) return;
+            
+            const speedValEl = document.getElementById('nav-map-speed-val');
+            const unitValEl = document.getElementById('nav-map-speed-unit');
+            const limitValEl = document.getElementById('nav-map-limit-val');
+            const limitWidget = document.getElementById('nav-map-limit-widget');
+            
+            let speed = appState.currentSpeed;
+            if (appState.unit === 'mph') {
+                speed = kmhToMph(speed);
+            }
+            
+            let displaySpeed = Math.round(speed);
+            if (speedValEl) {
+                speedValEl.innerText = displaySpeed;
+                
+                // digits styling
+                speedValEl.className = 'map-speed-val';
+                let len = displaySpeed.toString().length;
+                if (len === 1) speedValEl.classList.add('digits-1');
+                else if (len === 2) speedValEl.classList.add('digits-2');
+                else if (len === 3) speedValEl.classList.add('digits-3');
+            }
+            
+            if (unitValEl) {
+                unitValEl.innerText = appState.unit === 'kmh' ? 'км/ч' : 'mph';
+            }
+            
+            // Update speed limits
+            if (limitValEl) {
+                limitValEl.innerText = appState.speedLimit;
+            }
+            
+            if (limitWidget) {
+                limitWidget.style.display = appState.isSpeedAlertActive ? 'flex' : 'none';
+            }
+        }
+
+        function updateNavigationLocation(lat, lon, heading) {
+            if (!appState.navMapInitialized || !appState.navMapVisible || !appState.navMap) return;
+            
+            const latlng = [lon, lat]; // MapLibre takes [lon, lat]!
+            
+            // Move marker (immediately, but smooth transitions occur in requestAnimationFrame)
+            if (appState.navMarker && !appState.navFollow) {
+                appState.navMarker.setLngLat(latlng);
+                
+                // Rotate marker beam
+                const beam = document.querySelector('.nav-user-heading-beam');
+                if (beam) {
+                    beam.style.transform = `rotate(${heading}deg)`;
+                }
+            }
+
+            // Sync with Fullscreen HUD theme alerts
+            const isAlertActive = document.body.classList.contains('speed-alert') || document.body.classList.contains('wrong-way-alert');
+            const navSpeedValEl = document.getElementById('nav-map-speed-val');
+            if (navSpeedValEl) {
+                if (isAlertActive) {
+                    navSpeedValEl.style.color = '#ff3b5c';
+                    navSpeedValEl.style.textShadow = '0 0 15px rgba(255, 59, 92, 0.6)';
+                } else {
+                    navSpeedValEl.style.color = 'var(--text-light)';
+                    navSpeedValEl.style.textShadow = '0 0 10px rgba(255, 255, 255, 0.1)';
+                }
+            }
+            
+            // Update speed in overlay
+            updateNavOverlaySpeed();
+
+            // Check if navigation is active to track route progress
+            if (appState.navActive && appState.navRouteGeometry && appState.navRouteGeometry.length > 0) {
+                // Check if arrived (within 25m of destination node)
+                const lastNode = appState.navRouteGeometry[appState.navRouteGeometry.length - 1];
+                const distToDest = calculateHaversineDistance(lat, lon, lastNode[1], lastNode[0]);
+                
+                if (distToDest < 25) {
+                    alert('🏁 Вие пристигнахте до вашата дестинация!');
+                    stopNavigation();
+                    return;
+                }
+
+                // Auto-reroute check: if user is too far from all route points (e.g. > 65m), recalculate
+                let minRouteDist = Infinity;
+                appState.navRouteGeometry.forEach(coord => {
+                    const d = calculateHaversineDistance(lat, lon, coord[1], coord[0]);
+                    if (d < minRouteDist) minRouteDist = d;
+                });
+                
+                if (minRouteDist > 65 && !appState.isRouteRecalculating) {
+                    console.log('User drifted off course by', minRouteDist, 'meters. Recalculating route...');
+                    appState.isRouteRecalculating = true;
+                    // Throttle recalculations
+                    setTimeout(() => { appState.isRouteRecalculating = false; }, 5000);
+                    
+                    const endNode = appState.navRouteGeometry[appState.navRouteGeometry.length - 1];
+                    calculateNavRoute(lat, lon, endNode[1], endNode[0]);
+                    return;
+                }
+
+                // Find closest instruction step based on user progress
+                let closestStepIndex = 0;
+                let minStepDist = Infinity;
+                
+                for (let idx = 0; idx < appState.navRouteSteps.length; idx++) {
+                    const step = appState.navRouteSteps[idx];
+                    if (step.maneuver && step.maneuver.location) {
+                        const stepLoc = step.maneuver.location; // [lon, lat]
+                        const d = calculateHaversineDistance(lat, lon, stepLoc[1], stepLoc[0]);
+                        if (d < minStepDist) {
+                            minStepDist = d;
+                            closestStepIndex = idx;
+                        }
+                    }
+                }
+                
+                if (closestStepIndex > appState.navRouteSimIndex) {
+                    appState.navRouteSimIndex = closestStepIndex;
+                    updateNextInstruction();
+                }
+
+                // Recalculate remaining distance/duration dynamically
+                let remainingMeters = 0;
+                let closestGeomIdx = 0;
+                let minGeomDist = Infinity;
+                for (let i = 0; i < appState.navRouteGeometry.length; i++) {
+                    const node = appState.navRouteGeometry[i];
+                    const d = calculateHaversineDistance(lat, lon, node[1], node[0]);
+                    if (d < minGeomDist) {
+                        minGeomDist = d;
+                        closestGeomIdx = i;
+                    }
+                }
+
+                remainingMeters += calculateHaversineDistance(lat, lon, appState.navRouteGeometry[closestGeomIdx][1], appState.navRouteGeometry[closestGeomIdx][0]);
+                for (let i = closestGeomIdx; i < appState.navRouteGeometry.length - 1; i++) {
+                    const nodeA = appState.navRouteGeometry[i];
+                    const nodeB = appState.navRouteGeometry[i+1];
+                    remainingMeters += calculateHaversineDistance(nodeA[1], nodeA[0], nodeB[1], nodeB[0]);
+                }
+                
+                let avgSpeedKmh = appState.currentSpeed > 5 ? appState.currentSpeed : 45;
+                let speedMs = avgSpeedKmh / 3.6;
+                let remainingSecs = remainingMeters / speedMs;
+
+                updateNavigationUI(remainingMeters, remainingSecs);
+            }
+        }
+
+        function simulateMovementAlongRoute(speedKmh) {
+            if (!appState.navRouteGeometry || appState.navRouteGeometry.length < 2) return;
+            
+            let speedMs = speedKmh / 3.6;
+            if (speedMs <= 0) return;
+
+            if (appState.navRouteSimCoordIndex === undefined) {
+                appState.navRouteSimCoordIndex = 0;
+            }
+
+            let distToMove = speedMs;
+            let currentLat = simLat;
+            let currentLon = simLon;
+
+            while (distToMove > 0) {
+                if (appState.navRouteSimCoordIndex >= appState.navRouteGeometry.length - 1) {
+                    // Arrived at final destination in simulation
+                    simLat = appState.navRouteGeometry[appState.navRouteGeometry.length - 1][1];
+                    simLon = appState.navRouteGeometry[appState.navRouteGeometry.length - 1][0];
+                    simSpeedSlider.value = 0;
+                    simSpeedVal.innerText = `0 ${appState.unit === 'kmh' ? 'км/ч' : 'mph'}`;
+                    appState.currentSpeed = 0;
+                    
+                    alert('🏁 [Симулация] Пристигнахте до дестинацията!');
+                    stopNavigation();
+                    return;
+                }
+
+                const nextNode = appState.navRouteGeometry[appState.navRouteSimCoordIndex + 1]; // [lon, lat]
+                const targetLat = nextNode[1];
+                const targetLon = nextNode[0];
+
+                const d = calculateHaversineDistance(currentLat, currentLon, targetLat, targetLon);
+
+                if (d <= distToMove) {
+                    // Reached this node
+                    currentLat = targetLat;
+                    currentLon = targetLon;
+                    distToMove -= d;
+                    appState.navRouteSimCoordIndex++;
+                } else {
+                    // Move partially towards this node
+                    const ratio = distToMove / d;
+                    currentLat = currentLat + (targetLat - currentLat) * ratio;
+                    currentLon = currentLon + (targetLon - currentLon) * ratio;
+                    
+                    // Set simulated heading
+                    const bearing = calculateBearing(simLat, simLon, targetLat, targetLon);
+                    appState.simRouteAngle = bearing * Math.PI / 180;
+                    
+                    distToMove = 0;
+                }
+            }
+
+            simLat = currentLat;
+            simLon = currentLon;
+            
+            // Accumulate distance
+            appState.totalDistance += speedMs;
+            appState.tripDistance += speedMs;
+            localStorage.setItem('speedometer_total_distance', appState.totalDistance.toString());
+            localStorage.setItem('speedometer_trip_distance', appState.tripDistance.toString());
+
+            if (speedKmh > appState.maxSpeed) {
+                appState.maxSpeed = speedKmh;
+            }
+            appState.avgSpeedAccumulator += speedKmh;
+            appState.gpsPointsCount++;
+        }
+
         // Handle new coordinates received
         function handleLocationUpdate(position) {
             let lat = position.coords.latitude;
@@ -3340,6 +4702,10 @@
             // Update UI & Map
             updateUI();
             updateMapLocation(lat, lon, document.body.classList.contains('wrong-way-alert'));
+            
+            // Update Navigation Map (1Hz updates)
+            let currentHeadingVal = appState.targetHeading || 0;
+            updateNavigationLocation(lat, lon, currentHeadingVal);
         }
 
         function handleLocationError(error) {
@@ -3559,34 +4925,38 @@
             appState.currentSpeed = speedKmh;
 
             if (speedKmh > 0) {
-                // If wrong way, drive strictly straight along route angle. If normal, wobble route slightly
-                if (!appState.isWrongWaySim) {
-                    appState.simRouteAngle += (Math.random() - 0.5) * 0.2;
+                if (appState.navActive && appState.navRouteGeometry && appState.navRouteGeometry.length > 0) {
+                    simulateMovementAlongRoute(speedKmh);
+                } else {
+                    // Normal random driving route
+                    if (!appState.isWrongWaySim) {
+                        appState.simRouteAngle += (Math.random() - 0.5) * 0.2;
+                    }
+
+                    let speedMs = speedKmh / 3.6;
+                    
+                    let dLat = (speedMs * Math.cos(appState.simRouteAngle)) / 111111;
+                    let dLon = (speedMs * Math.sin(appState.simRouteAngle)) / (111111 * Math.cos(simLat * Math.PI / 180));
+
+                    simLat += dLat;
+                    simLon += dLon;
+
+                    // Accumulate distance
+                    let distMeters = speedMs;
+                    appState.totalDistance += distMeters;
+                    appState.tripDistance += distMeters;
+
+                    localStorage.setItem('speedometer_total_distance', appState.totalDistance.toString());
+                    localStorage.setItem('speedometer_trip_distance', appState.tripDistance.toString());
+
+                    if (speedKmh > appState.maxSpeed) {
+                        appState.maxSpeed = speedKmh;
+                    }
+
+                    appState.avgSpeedAccumulator += speedKmh;
+                    appState.gpsPointsCount++;
                 }
 
-                let speedMs = speedKmh / 3.6;
-                
-                let dLat = (speedMs * Math.cos(appState.simRouteAngle)) / 111111;
-                let dLon = (speedMs * Math.sin(appState.simRouteAngle)) / (111111 * Math.cos(simLat * Math.PI / 180));
-
-                simLat += dLat;
-                simLon += dLon;
-
-                // Accumulate distance
-                let distMeters = speedMs;
-                appState.totalDistance += distMeters;
-                appState.tripDistance += distMeters;
-
-                localStorage.setItem('speedometer_total_distance', appState.totalDistance.toString());
-                localStorage.setItem('speedometer_trip_distance', appState.tripDistance.toString());
-
-                if (speedKmh > appState.maxSpeed) {
-                    appState.maxSpeed = speedKmh;
-                }
-
-                appState.avgSpeedAccumulator += speedKmh;
-                appState.gpsPointsCount++;
-                
                 if (!appState.tripStartTime) {
                     appState.tripStartTime = Date.now();
                 }
@@ -3621,6 +4991,9 @@
 
             updateUI();
             updateMapLocation(simLat, simLon, document.body.classList.contains('wrong-way-alert'));
+            
+            // Update Navigation Map in simulation (1Hz updates)
+            updateNavigationLocation(simLat, simLon, simHeading);
         }
 
         btnMapRecenter.addEventListener('click', () => {
