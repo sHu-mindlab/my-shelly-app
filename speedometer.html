@@ -1148,24 +1148,27 @@
             right: auto !important;
         }
 
-        body.fullscreen-nav-active #nav-map-theme-toggle-btn {
-            top: calc(10px + env(safe-area-inset-top)) !important;
+        .nav-map-controls-top-left {
+            position: absolute;
+            z-index: 1000;
+            display: none;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        body.fullscreen-nav-active .nav-map-controls-top-left {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            bottom: calc(75px + env(safe-area-inset-bottom)) !important;
             left: calc(10px + env(safe-area-inset-left)) !important;
-            right: auto !important;
+            top: auto !important;
         }
 
-        body.fullscreen-nav-active #nav-map-3d-btn {
-            top: calc(10px + env(safe-area-inset-top)) !important;
-            left: calc(85px + env(safe-area-inset-left)) !important;
-            right: auto !important;
+        .nav-map-controls-top-left .map-overlay-btn {
+            position: static !important;
             display: flex !important;
-        }
-
-        body.fullscreen-nav-active #nav-map-follow-btn {
-            top: calc(10px + env(safe-area-inset-top)) !important;
-            left: calc(150px + env(safe-area-inset-left)) !important;
-            right: auto !important;
-            display: flex !important;
+            margin: 0 !important;
         }
 
         body.fullscreen-nav-active #nav-map-recenter-btn.visible {
@@ -1186,11 +1189,12 @@
 
         body.fullscreen-nav-active #nav-map-wrapper .map-bottom-hud {
             display: flex;
-            flex-direction: row-reverse !important;
+            flex-direction: column !important;
             align-items: center;
-            top: calc(10px + env(safe-area-inset-top)) !important;
-            right: calc(10px + env(safe-area-inset-right)) !important;
-            bottom: auto !important;
+            gap: 12px;
+            bottom: calc(75px + env(safe-area-inset-bottom)) !important;
+            right: calc(15px + env(safe-area-inset-right)) !important;
+            top: auto !important;
             left: auto !important;
         }
 
@@ -1223,7 +1227,7 @@
         }
 
         body.fullscreen-nav-active .nav-search-container {
-            top: calc(70px + env(safe-area-inset-top));
+            top: calc(10px + env(safe-area-inset-top));
             left: 50%;
             transform: translateX(-50%);
             width: calc(100% - 20px);
@@ -1324,7 +1328,7 @@
         }
 
         body.fullscreen-nav-active .nav-instructions-overlay {
-            top: calc(130px + env(safe-area-inset-top));
+            top: calc(65px + env(safe-area-inset-top));
             width: calc(100% - 20px);
             max-width: 480px;
         }
@@ -1982,18 +1986,19 @@
                     <span>Назад</span>
                 </button>
 
-                <button class="map-overlay-btn theme-toggle-btn" id="nav-map-theme-toggle-btn">
-                    <span id="nav-map-theme-icon">☀️</span>
-                    <span id="nav-map-theme-text">Ден</span>
-                </button>
-
-                <!-- MapLibre specific controls: 3D toggle, follow orientation toggle -->
-                <button class="map-overlay-btn nav-3d-btn active" id="nav-map-3d-btn" style="right: 170px;">
-                    <span>3D</span>
-                </button>
-                <button class="map-overlay-btn nav-follow-btn active" id="nav-map-follow-btn" style="right: 230px;">
-                    <span>🧭 Следи</span>
-                </button>
+                <!-- Top Left Control Row (theme, 3D, follow) -->
+                <div class="nav-map-controls-top-left" id="nav-map-controls-top-left">
+                    <button class="map-overlay-btn theme-toggle-btn" id="nav-map-theme-toggle-btn">
+                        <span id="nav-map-theme-icon">☀️</span>
+                        <span id="nav-map-theme-text">Ден</span>
+                    </button>
+                    <button class="map-overlay-btn nav-3d-btn active" id="nav-map-3d-btn">
+                        <span>3D</span>
+                    </button>
+                    <button class="map-overlay-btn nav-follow-btn active" id="nav-map-follow-btn">
+                        <span>🧭 Следи</span>
+                    </button>
+                </div>
 
                 <button class="map-overlay-btn recenter-btn" id="nav-map-recenter-btn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
