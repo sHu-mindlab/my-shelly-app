@@ -921,6 +921,8 @@
             justify-content: center;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 5px rgba(0,0,0,0.2);
             transition: transform 0.2s ease;
+            overflow: hidden;
+            background-clip: padding-box;
         }
 
         body.fullscreen-map-active.speed-alert .map-speed-limit-sign {
@@ -941,6 +943,9 @@
             letter-spacing: -1px;
             position: relative;
             top: 6px;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
         }
 
         /* Safe areas support for iOS / PWA is handled inline via env() variables */
@@ -3952,6 +3957,7 @@
 
         function setupNavMapLayers() {
             if (!appState.navMap) return;
+            console.log("setupNavMapLayers: Initializing layers. Route Geometry exists:", !!appState.navRouteGeometry);
 
             // 1. Add or update route source
             if (!appState.navMap.getSource('route')) {
@@ -4085,6 +4091,11 @@
             // Listen to style load event to recreate custom layers when theme is switched
             appState.navMap.on('style.load', () => {
                 setupNavMapLayers();
+            });
+            appState.navMap.on('styledata', () => {
+                if (appState.navMap.isStyleLoaded()) {
+                    setupNavMapLayers();
+                }
             });
 
             // Map manual interaction listener (disable auto-centering on drag)
