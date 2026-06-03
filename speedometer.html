@@ -2419,6 +2419,8 @@
             navFollow: true,
             navFollowZoom: 18.5,
             navTargetZoom: 18.5,
+            navStartLocation: null,
+            navHasAutoCentered: false,
             nav3D: true,
             navRouteSimIndex: 0,
             navRouteSimProgress: 0
@@ -3058,6 +3060,7 @@
                 appState.navFollow = true;
                 appState.navTargetZoom = 18.5; // Reset target zoom to default close-up on recenter
                 appState.navFollowZoom = appState.navMap ? appState.navMap.getZoom() : 18.5; // Start smooth transition from current zoom
+                appState.navHasAutoCentered = true;
                 const followBtn = document.getElementById('nav-map-follow-btn');
                 if (followBtn) followBtn.classList.add('active');
                 navMapRecenterBtn.classList.remove('visible');
@@ -3104,6 +3107,7 @@
                     // Reset to default close zoom when manual follow is clicked
                     appState.navTargetZoom = 18.5;
                     appState.navFollowZoom = appState.navMap ? appState.navMap.getZoom() : 18.5;
+                    appState.navHasAutoCentered = true;
                 } else {
                     navMapFollowBtn.classList.remove('active');
                     if (navMapRecenterBtn) navMapRecenterBtn.classList.add('visible');
@@ -3540,7 +3544,8 @@
                     appState.navFollowZoom += (appState.navTargetZoom - appState.navFollowZoom) * t;
 
                     const height = appState.navMapHeight || appState.navMap.getContainer().clientHeight;
-                    const topPadding = height ? height / 3 : 0;
+                    const isControlsHidden = document.body.classList.contains('nav-controls-hidden');
+                    const topPadding = height ? (isControlsHidden ? height / 2 : height / 3) : 0;
                     
                     appState.navMap.jumpTo({
                         center: navLngLat,
@@ -4465,35 +4470,28 @@
                 appState.navRouteSimProgress = 0;
                 appState.navRouteSimCoordIndex = 0; // Reset simulation coordinate pointer
 
-                // Update MapLibre source & center at the start of the route
+                // Update MapLibre source & show the entire route
                 if (appState.navMap) {
                     setupNavMapLayers();
                     
+                    // Fit map bounds to the route to show the entire path initially
                     const coordinates = route.geometry.coordinates;
-                    if (coordinates && coordinates.length > 0) {
-                        const startLon = coordinates[0][0];
-                        const startLat = coordinates[0][1];
-                        
-                        appState.navFollow = true;
-                        appState.navTargetZoom = 18.5; // Default close-up zoom
-                        appState.navFollowZoom = appState.navMap.getZoom(); // Start interpolation from current zoom
-                        
-                        const followBtn = document.getElementById('nav-map-follow-btn');
-                        if (followBtn) followBtn.classList.add('active');
-                        const recenterBtn = document.getElementById('nav-map-recenter-btn');
-                        if (recenterBtn) recenterBtn.classList.remove('visible');
-                        
-                        const height = appState.navMapHeight || appState.navMap.getContainer().clientHeight;
-                        const topPadding = height ? height / 3 : 0;
-                        
-                        appState.navMap.jumpTo({
-                            center: [startLon, startLat],
-                            zoom: appState.navFollowZoom,
-                            bearing: appState.targetHeading || 0,
-                            pitch: appState.nav3D ? 60 : 0,
-                            padding: { top: topPadding, bottom: 0, left: 0, right: 0 }
-                        });
-                    }
+                    const bounds = coordinates.reduce((acc, coord) => {
+                        return acc.extend(coord);
+                    }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+                    
+                    appState.navMap.fitBounds(bounds, { padding: 40 });
+                    
+                    // Do not follow yet, wait until user moves 10m
+                    appState.navFollow = false;
+                    appState.navTargetZoom = 18.5;
+                    appState.navStartLocation = { lat: startLat, lon: startLon };
+                    appState.navHasAutoCentered = false;
+                    
+                    const followBtn = document.getElementById('nav-map-follow-btn');
+                    if (followBtn) followBtn.classList.remove('active');
+                    const recenterBtn = document.getElementById('nav-map-recenter-btn');
+                    if (recenterBtn) recenterBtn.classList.add('visible');
                 }
 
                 // Show turn-by-turn instruction card
@@ -4545,6 +4543,31 @@
                 'slight left': 'Леко вляво',
                 'slight right': 'Леко вдясно'
             },
+            'depart': {
+                'left': 'Тръгнете наляво',
+                'right': 'Тръгнете надясно',
+                'sharp left': 'Тръгнете рязко наляво',
+                'sharp right': 'Тръгнете рязко надясно',
+                'slight left': 'Тръгнете леко вляво',
+                'slight right': 'Тръгнете леко вдясно',
+                'straight': 'Тръгнете напред'
+            },
+            'end of road': {
+                'left': 'Завийте наляво в края на пътя',
+                'right': 'Завийте надясно в края на пътя',
+                'sharp left': 'Завийте рязко наляво в края на пътя',
+                'sharp right': 'Завийте рязко надясно в края на пътя',
+                'slight left': 'Леко вляво в края на пътя',
+                'slight right': 'Леко вдясно в края на пътя'
+            },
+            'ramp': {
+                'left': 'Завийте наляво по рампата',
+                'right': 'Завийте надясно по рампата',
+                'sharp left': 'Завийте рязко наляво по рампата',
+                'sharp right': 'Завийте рязко надясно по рампата',
+                'slight left': 'Леко вляво по рампата',
+                'slight right': 'Леко вдясно по рампата'
+            },
             'new name': 'Продължете по',
             'continue': 'Продължете напред',
             'merge': 'Слейте се с пътя',
@@ -4569,8 +4592,9 @@
             }
             
             if (maneuverTranslation[type]) {
-                if (typeof maneuverTranslation[type] === 'object' && modifier) {
-                    actionText = maneuverTranslation[type][modifier] || maneuverTranslation[type]['left'] || 'Завийте';
+                if (typeof maneuverTranslation[type] === 'object') {
+                    const fallbackDefault = type === 'depart' ? 'Тръгнете' : 'Завийте';
+                    actionText = (modifier ? maneuverTranslation[type][modifier] : null) || maneuverTranslation[type]['straight'] || maneuverTranslation[type]['left'] || fallbackDefault;
                 } else {
                     actionText = maneuverTranslation[type];
                 }
@@ -4736,6 +4760,29 @@
 
             // Check if navigation is active to track route progress
             if (appState.navActive && appState.navRouteGeometry && appState.navRouteGeometry.length > 0) {
+                // Auto-center when user travels 10m from the start
+                if (appState.navStartLocation && !appState.navHasAutoCentered) {
+                    const distFromStart = calculateHaversineDistance(
+                        appState.navStartLocation.lat,
+                        appState.navStartLocation.lon,
+                        lat,
+                        lon
+                    );
+                    if (distFromStart >= 10) {
+                        appState.navHasAutoCentered = true;
+                        appState.navFollow = true;
+                        appState.navFollowZoom = appState.navMap ? appState.navMap.getZoom() : 18.5;
+                        appState.navTargetZoom = 18.5;
+                        
+                        const followBtn = document.getElementById('nav-map-follow-btn');
+                        if (followBtn) followBtn.classList.add('active');
+                        const recenterBtn = document.getElementById('nav-map-recenter-btn');
+                        if (recenterBtn) recenterBtn.classList.remove('visible');
+                        
+                        console.log("User moved 10m. Auto-centering navigation map.");
+                    }
+                }
+
                 // Check if arrived (within 25m of destination node)
                 const lastNode = appState.navRouteGeometry[appState.navRouteGeometry.length - 1];
                 const distToDest = calculateHaversineDistance(lat, lon, lastNode[1], lastNode[0]);
