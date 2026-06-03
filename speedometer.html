@@ -1246,8 +1246,8 @@
         /* Custom transparent zoom controls */
         .zoom-controls {
             position: absolute;
-            right: 15px;
-            top: 75px; /* Positioned nicely on the right side */
+            left: 15px;
+            bottom: calc(70px + env(safe-area-inset-bottom)); /* Positioned vertically above the back button */
             z-index: 1000;
             display: none; /* Only show when map is active */
             flex-direction: column;
@@ -1272,7 +1272,7 @@
         body.fullscreen-nav-active.nav-controls-hidden #nav-zoom-controls {
             opacity: 0 !important;
             pointer-events: none !important;
-            transform: translateY(-20px) !important;
+            transform: translateY(20px) !important;
         }
 
         .zoom-btn {
