@@ -1183,28 +1183,6 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
         }
 
-        /* Recenter button dynamic width transition in the controls row */
-        #nav-map-recenter-btn {
-            transition: opacity 0.3s ease, flex 0.3s ease, width 0.3s ease, padding 0.3s ease, margin 0.3s ease, border-width 0.3s ease !important;
-        }
-
-        #nav-map-recenter-btn:not(.visible) {
-            flex: 0 !important;
-            width: 0 !important;
-            min-width: 0 !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            border: none !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-
-        #nav-map-recenter-btn.visible {
-            flex: 1 !important;
-            opacity: 1 !important;
-            pointer-events: auto !important;
-        }
-
         body.fullscreen-nav-active.wrong-way-alert #nav-map-wrong-way-banner {
             display: block;
         }
@@ -2185,14 +2163,9 @@
                     <button class="map-overlay-btn nav-follow-btn active" id="nav-map-follow-btn" title="Следване">
                         <span>🧭</span>
                     </button>
-                    <button class="map-overlay-btn recenter-btn" id="nav-map-recenter-btn" title="Центрирай">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <line x1="12" y1="1" x2="12" y2="4"></line>
-                            <line x1="12" y1="20" x2="12" y2="23"></line>
-                            <line x1="1" y1="12" x2="4" y2="12"></line>
-                            <line x1="20" y1="12" x2="23" y2="12"></line>
+                    <button class="map-overlay-btn start-stop-btn" id="nav-map-start-stop-btn" title="Старт навигация">
+                        <svg class="nav-start-stop-svg" width="18" height="18" viewBox="0 0 24 24" fill="var(--accent-emerald, #10b981)" stroke="var(--accent-emerald, #10b981)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
                         </svg>
                     </button>
                 </div>
@@ -3053,29 +3026,23 @@
             });
         }
 
-        // Recenter nav map
-        const navMapRecenterBtn = document.getElementById('nav-map-recenter-btn');
-        if (navMapRecenterBtn) {
-            addTapListener(navMapRecenterBtn, () => {
-                appState.navFollow = true;
-                appState.navTargetZoom = 18.5; // Reset target zoom to default close-up on recenter
-                appState.navFollowZoom = appState.navMap ? appState.navMap.getZoom() : 18.5; // Start smooth transition from current zoom
-                appState.navHasAutoCentered = true;
-                const followBtn = document.getElementById('nav-map-follow-btn');
-                if (followBtn) followBtn.classList.add('active');
-                navMapRecenterBtn.classList.remove('visible');
-                
-                if (appState.lastLat && appState.lastLon && appState.navMap) {
-                    if (!appState.navMapHeight) {
-                        appState.navMapHeight = appState.navMap.getContainer().clientHeight;
+        // Start/Stop Navigation button
+        const btnNavStartStop = document.getElementById('nav-map-start-stop-btn');
+        if (btnNavStartStop) {
+            addTapListener(btnNavStartStop, () => {
+                if (appState.navActive) {
+                    stopNavigation();
+                } else {
+                    const inputVal = document.getElementById('nav-destination-input').value.trim();
+                    if (inputVal) {
+                        searchNavDestination();
+                    } else {
+                        const input = document.getElementById('nav-destination-input');
+                        if (input) {
+                            input.focus();
+                            alert("Моля, въведете дестинация в полето за търсене!");
+                        }
                     }
-                    const topPadding = appState.navMapHeight / 3;
-                    appState.navMap.easeTo({
-                        center: [appState.lastLon, appState.lastLat],
-                        zoom: appState.navTargetZoom,
-                        padding: { top: topPadding, bottom: 0, left: 0, right: 0 },
-                        duration: 1000
-                    });
                 }
             });
         }
@@ -3103,14 +3070,11 @@
                 appState.navFollow = !appState.navFollow;
                 if (appState.navFollow) {
                     navMapFollowBtn.classList.add('active');
-                    if (navMapRecenterBtn) navMapRecenterBtn.classList.remove('visible');
-                    // Reset to default close zoom when manual follow is clicked
                     appState.navTargetZoom = 18.5;
                     appState.navFollowZoom = appState.navMap ? appState.navMap.getZoom() : 18.5;
                     appState.navHasAutoCentered = true;
                 } else {
                     navMapFollowBtn.classList.remove('active');
-                    if (navMapRecenterBtn) navMapRecenterBtn.classList.add('visible');
                 }
             });
         }
@@ -4299,9 +4263,6 @@
                     appState.navFollow = false;
                     const followBtn = document.getElementById('nav-map-follow-btn');
                     if (followBtn) followBtn.classList.remove('active');
-                    
-                    const recenterBtn = document.getElementById('nav-map-recenter-btn');
-                    if (recenterBtn) recenterBtn.classList.add('visible');
                 }
             });
             appState.navMap.on('zoomstart', (e) => {
@@ -4309,9 +4270,6 @@
                 appState.navFollow = false;
                 const followBtn = document.getElementById('nav-map-follow-btn');
                 if (followBtn) followBtn.classList.remove('active');
-                
-                const recenterBtn = document.getElementById('nav-map-recenter-btn');
-                if (recenterBtn) recenterBtn.classList.add('visible');
             });
 
             appState.navMapHeight = document.getElementById('nav-map').clientHeight;
@@ -4326,6 +4284,7 @@
 
             appState.navMapInitialized = true;
             updateThemeUI(appState.mapMode);
+            updateStartStopButton();
         }
 
         function enterFullscreenNav() {
@@ -4490,8 +4449,6 @@
                     
                     const followBtn = document.getElementById('nav-map-follow-btn');
                     if (followBtn) followBtn.classList.remove('active');
-                    const recenterBtn = document.getElementById('nav-map-recenter-btn');
-                    if (recenterBtn) recenterBtn.classList.add('visible');
                 }
 
                 // Show turn-by-turn instruction card
@@ -4501,6 +4458,8 @@
                 // Show stop button & update remaining times
                 updateNavigationUI(route.distance, route.duration);
                 updateNextInstruction();
+                
+                updateStartStopButton();
                 
             } catch (e) {
                 console.error(e);
@@ -4661,6 +4620,29 @@
             }
         }
 
+        function updateStartStopButton() {
+            const btn = document.getElementById('nav-map-start-stop-btn');
+            if (!btn) return;
+            
+            if (appState.navActive) {
+                btn.title = "Спиране на навигацията";
+                btn.innerHTML = `
+                    <svg class="nav-start-stop-svg" width="18" height="18" viewBox="0 0 24 24" fill="var(--accent-rose, #ff3b5c)" stroke="var(--accent-rose, #ff3b5c)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                    </svg>
+                `;
+                btn.classList.add('active');
+            } else {
+                btn.title = "Старт навигация";
+                btn.innerHTML = `
+                    <svg class="nav-start-stop-svg" width="18" height="18" viewBox="0 0 24 24" fill="var(--accent-emerald, #10b981)" stroke="var(--accent-emerald, #10b981)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                `;
+                btn.classList.remove('active');
+            }
+        }
+
         function stopNavigation() {
             appState.navActive = false;
             appState.navDestination = null;
@@ -4685,6 +4667,8 @@
             document.getElementById('nav-instructions-overlay').style.display = 'none';
             document.getElementById('nav-destination-input').value = '';
             document.body.classList.remove('nav-routing-active');
+            
+            updateStartStopButton();
         }
 
         function updateNavOverlaySpeed() {
