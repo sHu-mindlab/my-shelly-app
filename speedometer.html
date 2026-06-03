@@ -1234,6 +1234,38 @@
             max-width: 480px;
         }
 
+        /* Auto-hide navigation controls & transitions */
+        body.fullscreen-nav-active #nav-search-container,
+        body.fullscreen-nav-active .nav-map-controls-top-left,
+        body.fullscreen-nav-active #nav-map-back-btn,
+        body.fullscreen-nav-active #nav-map-recenter-btn {
+            transition: opacity 0.4s ease, transform 0.4s ease !important;
+        }
+
+        body.fullscreen-nav-active.nav-controls-hidden #nav-search-container {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translate(-50%, -20px) !important;
+        }
+
+        body.fullscreen-nav-active.nav-controls-hidden .nav-map-controls-top-left {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateY(20px) !important;
+        }
+
+        body.fullscreen-nav-active.nav-controls-hidden #nav-map-back-btn {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateY(20px) !important;
+        }
+
+        body.fullscreen-nav-active.nav-controls-hidden #nav-map-recenter-btn {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateY(20px) !important;
+        }
+
         .nav-input {
             flex: 1;
             padding: 10px 16px;
@@ -2834,9 +2866,14 @@
                 navMapRecenterBtn.classList.remove('visible');
                 
                 if (appState.lastLat && appState.lastLon && appState.navMap) {
+                    if (!appState.navMapHeight) {
+                        appState.navMapHeight = appState.navMap.getContainer().clientHeight;
+                    }
+                    const topPadding = appState.navMapHeight / 3;
                     appState.navMap.easeTo({
                         center: [appState.lastLon, appState.lastLat],
-                        zoom: 16
+                        zoom: 16,
+                        padding: { top: topPadding, bottom: 0, left: 0, right: 0 }
                     });
                 }
             });
@@ -2903,6 +2940,27 @@
             }
         });
 
+        // Setup navigation UI inactivity auto-hide listeners
+        const navMapWrapperEl = document.getElementById('nav-map-wrapper');
+        if (navMapWrapperEl) {
+            navMapWrapperEl.addEventListener('pointerdown', () => {
+                resetNavControlsTimeout();
+            });
+        }
+        
+        if (navDestinationInput) {
+            navDestinationInput.addEventListener('focus', () => {
+                if (appState.navControlsTimeout) clearTimeout(appState.navControlsTimeout);
+                document.body.classList.remove('nav-controls-hidden');
+            });
+            navDestinationInput.addEventListener('blur', () => {
+                resetNavControlsTimeout();
+            });
+            navDestinationInput.addEventListener('input', () => {
+                resetNavControlsTimeout();
+            });
+        }
+
         // Handle window resize / orientation change to ensure map centers correctly
         window.addEventListener('resize', () => {
             if (appState.map && appState.mapInitialized && appState.mapVisible) {
@@ -2926,6 +2984,7 @@
             // Resize MapLibre Navigation Map
             if (appState.navMap && appState.navMapInitialized && appState.navMapVisible) {
                 appState.navMap.resize();
+                appState.navMapHeight = appState.navMap.getContainer().clientHeight;
             }
         });
 
@@ -3215,10 +3274,16 @@
                         rotHeading = 0;
                     }
                     
+                    if (!appState.navMapHeight && appState.navMap) {
+                        appState.navMapHeight = appState.navMap.getContainer().clientHeight;
+                    }
+                    const topPadding = appState.navMapHeight ? appState.navMapHeight / 3 : 0;
+                    
                     appState.navMap.jumpTo({
                         center: navLngLat,
                         bearing: rotHeading,
-                        pitch: appState.nav3D ? 60 : 0
+                        pitch: appState.nav3D ? 60 : 0,
+                        padding: { top: topPadding, bottom: 0, left: 0, right: 0 }
                     });
                 }
             }
@@ -3948,21 +4013,53 @@
             if (appState.navMap) {
                 setTimeout(() => {
                     appState.navMap.resize();
+                    appState.navMapHeight = appState.navMap.getContainer().clientHeight;
+                    const topPadding = appState.navMapHeight / 3;
                     if (appState.lastLat && appState.lastLon) {
-                        appState.navMap.jumpTo({ center: [appState.lastLon, appState.lastLat] });
+                        appState.navMap.jumpTo({ 
+                            center: [appState.lastLon, appState.lastLat],
+                            padding: { top: topPadding, bottom: 0, left: 0, right: 0 }
+                        });
                     }
                 }, 200);
             }
             updateNavOverlaySpeed();
+            
+            // Initialize 10s auto-hide timer
+            resetNavControlsTimeout();
         }
 
         function exitFullscreenNav() {
             document.body.classList.remove('fullscreen-nav-active');
+            document.body.classList.remove('nav-controls-hidden');
+            if (appState.navControlsTimeout) {
+                clearTimeout(appState.navControlsTimeout);
+                appState.navControlsTimeout = null;
+            }
             if (appState.navMap) {
                 setTimeout(() => {
                     appState.navMap.resize();
                 }, 100);
             }
+        }
+
+        function resetNavControlsTimeout() {
+            document.body.classList.remove('nav-controls-hidden');
+            if (appState.navControlsTimeout) {
+                clearTimeout(appState.navControlsTimeout);
+            }
+            
+            if (!document.body.classList.contains('fullscreen-nav-active')) return;
+            
+            const destInput = document.getElementById('nav-destination-input');
+            const dropdown = document.getElementById('nav-results-dropdown');
+            if (document.activeElement === destInput || (dropdown && dropdown.style.display !== 'none')) {
+                return;
+            }
+
+            appState.navControlsTimeout = setTimeout(() => {
+                document.body.classList.add('nav-controls-hidden');
+            }, 10000);
         }
 
         function toggleNavTheme() {
