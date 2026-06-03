@@ -1203,6 +1203,15 @@
             right: calc(15px + env(safe-area-inset-right)) !important;
             top: auto !important;
             left: auto !important;
+            transition: bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1), right 0.4s ease !important;
+        }
+
+        @media (orientation: portrait) {
+            body.fullscreen-nav-active.nav-controls-hidden #nav-map-wrapper .map-bottom-hud {
+                bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+                flex-direction: row-reverse !important;
+                align-items: center !important;
+            }
         }
 
         body.fullscreen-nav-active.speed-alert #nav-map-speed-val {
