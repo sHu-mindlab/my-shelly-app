@@ -3950,6 +3950,85 @@
             }
         }
 
+        function setupNavMapLayers() {
+            if (!appState.navMap) return;
+
+            // 1. Add or update route source
+            if (!appState.navMap.getSource('route')) {
+                appState.navMap.addSource('route', {
+                    'type': 'geojson',
+                    'data': {
+                        'type': 'Feature',
+                        'properties': {},
+                        'geometry': {
+                            'type': 'LineString',
+                            'coordinates': appState.navRouteGeometry || []
+                        }
+                    }
+                });
+            } else if (appState.navRouteGeometry) {
+                const source = appState.navMap.getSource('route');
+                if (source) {
+                    source.setData({
+                        'type': 'Feature',
+                        'properties': {},
+                        'geometry': {
+                            'type': 'LineString',
+                            'coordinates': appState.navRouteGeometry
+                        }
+                    });
+                }
+            }
+
+            // 2. Add route layer if missing
+            if (!appState.navMap.getLayer('route-line')) {
+                appState.navMap.addLayer({
+                    'id': 'route-line',
+                    'type': 'line',
+                    'source': 'route',
+                    'layout': {
+                        'line-join': 'round',
+                        'line-cap': 'round'
+                    },
+                    'paint': {
+                        'line-color': '#10b981', // Emerald green route
+                        'line-width': 7,
+                        'line-opacity': 0.85
+                    }
+                });
+            }
+
+            // 3. Add 3D buildings layer if missing and source is available
+            if (!appState.navMap.getLayer('3d-buildings')) {
+                let sourceId = null;
+                if (appState.navMap.getSource('openmaptiles')) {
+                    sourceId = 'openmaptiles';
+                } else if (appState.navMap.getSource('carto')) {
+                    sourceId = 'carto';
+                }
+
+                if (sourceId) {
+                    try {
+                        appState.navMap.addLayer({
+                            'id': '3d-buildings',
+                            'source': sourceId,
+                            'source-layer': 'building',
+                            'type': 'fill-extrusion',
+                            'minzoom': 15,
+                            'paint': {
+                                'fill-extrusion-color': appState.mapMode === 'day' ? '#e2e8f0' : '#1e293b',
+                                'fill-extrusion-height': ['get', 'render_height'],
+                                'fill-extrusion-base': ['get', 'render_min_height'],
+                                'fill-extrusion-opacity': 0.65
+                            }
+                        });
+                    } catch (e) {
+                        console.warn("Could not load 3D buildings layer", e);
+                    }
+                }
+            }
+        }
+
         // --- MAPLIBRE 3D NAVIGATION LOGIC ---
         function initNavMap() {
             if (appState.navMapInitialized) return;
@@ -4003,54 +4082,9 @@
                 .setLngLat([startLon, startLat])
                 .addTo(appState.navMap);
 
-            appState.navMap.on('load', () => {
-                // Route path line source
-                appState.navMap.addSource('route', {
-                    'type': 'geojson',
-                    'data': {
-                        'type': 'Feature',
-                        'properties': {},
-                        'geometry': {
-                            'type': 'LineString',
-                            'coordinates': []
-                        }
-                    }
-                });
-                
-                // Add route line layer
-                appState.navMap.addLayer({
-                    'id': 'route-line',
-                    'type': 'line',
-                    'source': 'route',
-                    'layout': {
-                        'line-join': 'round',
-                        'line-cap': 'round'
-                    },
-                    'paint': {
-                        'line-color': '#10b981', // Emerald green route
-                        'line-width': 7,
-                        'line-opacity': 0.85
-                    }
-                });
-
-                // Add 3D buildings extrusion layer
-                try {
-                    appState.navMap.addLayer({
-                        'id': '3d-buildings',
-                        'source': 'openmaptiles',
-                        'source-layer': 'building',
-                        'type': 'fill-extrusion',
-                        'minzoom': 15,
-                        'paint': {
-                            'fill-extrusion-color': '#1e293b',
-                            'fill-extrusion-height': ['get', 'render_height'],
-                            'fill-extrusion-base': ['get', 'render_min_height'],
-                            'fill-extrusion-opacity': 0.65
-                        }
-                    });
-                } catch (e) {
-                    console.warn("Could not load 3D buildings layer (might not exist in this style source)", e);
-                }
+            // Listen to style load event to recreate custom layers when theme is switched
+            appState.navMap.on('style.load', () => {
+                setupNavMapLayers();
             });
 
             // Map manual interaction listener (disable auto-centering on drag)
@@ -4237,14 +4271,7 @@
 
                 // Update MapLibre source
                 if (appState.navMap) {
-                    const source = appState.navMap.getSource('route');
-                    if (source) {
-                        source.setData({
-                            'type': 'Feature',
-                            'properties': {},
-                            'geometry': route.geometry
-                        });
-                    }
+                    setupNavMapLayers();
                     
                     // Fit map bounds to the route
                     const coordinates = route.geometry.coordinates;
