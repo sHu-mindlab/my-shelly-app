@@ -1183,6 +1183,10 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
         }
 
+        .nav-map-controls-bottom .map-overlay-btn.hidden {
+            display: none !important;
+        }
+
         body.fullscreen-nav-active.wrong-way-alert #nav-map-wrong-way-banner {
             display: block;
         }
@@ -2163,7 +2167,7 @@
                     <button class="map-overlay-btn nav-follow-btn active" id="nav-map-follow-btn" title="Следване">
                         <span>🧭</span>
                     </button>
-                    <button class="map-overlay-btn start-stop-btn" id="nav-map-start-stop-btn" title="Старт навигация" style="display: none;">
+                    <button class="map-overlay-btn start-stop-btn hidden" id="nav-map-start-stop-btn" title="Старт навигация">
                         <svg class="nav-start-stop-svg" width="18" height="18" viewBox="0 0 24 24" fill="var(--accent-emerald, #10b981)" stroke="var(--accent-emerald, #10b981)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="5 3 19 12 5 21 5 3"></polygon>
                         </svg>
@@ -4653,10 +4657,10 @@
             if (!btn) return;
             
             if (!appState.navRouteGeometry || appState.navRouteGeometry.length === 0) {
-                btn.style.display = 'none';
+                btn.classList.add('hidden');
                 return;
             } else {
-                btn.style.display = 'flex';
+                btn.classList.remove('hidden');
             }
             
             if (appState.navActive) {
