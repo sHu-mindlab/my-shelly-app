@@ -86,6 +86,10 @@ body {
     box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px 0 var(--accent-cyan-glow);
 }
 
+#card-alprgate:hover {
+    border-color: rgba(16, 185, 129, 0.45);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px 0 var(--accent-emerald-glow);
+}
 #card-shelly:hover {
     border-color: rgba(56, 189, 248, 0.45);
     box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px 0 var(--accent-cyan-glow);
@@ -762,6 +766,19 @@ footer .tech-note {
     100% {
         r: 3px;
         opacity: 1;
+    }
+}
+
+.pulse-emerald {
+    animation: pulse-emerald-kf 1.8s infinite ease-in-out;
+}
+
+@keyframes pulse-emerald-kf {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.25;
     }
 }
 

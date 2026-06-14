@@ -172,7 +172,42 @@
 
                 <!-- Projects Grid -->
                 <div class="projects-grid">
-                    
+
+                    <!-- Project 0: ALPR Gate -->
+                    <article class="project-card glass-panel" data-category="iot" id="card-alprgate">
+                        <div class="project-image">
+                            <div class="project-badge">IoT / SaaS / ALPR</div>
+                            <!-- License plate + gate barrier SVG graphic -->
+                            <svg width="120" height="120" viewBox="0 0 100 100" fill="none">
+                                <circle cx="50" cy="50" r="40" stroke="rgba(16, 185, 129, 0.2)" stroke-width="2"></circle>
+                                <!-- License plate -->
+                                <rect x="28" y="42" width="44" height="20" rx="3" stroke="#10b981" stroke-width="2" fill="#0d131f"></rect>
+                                <text x="50" y="56" fill="#10b981" font-family="'Outfit', sans-serif" font-weight="bold" font-size="11" letter-spacing="1" text-anchor="middle">CB</text>
+                                <line x1="44" y1="46" x2="44" y2="58" stroke="#10b981" stroke-width="1.5"></line>
+                                <!-- Scan beam -->
+                                <path d="M22 34 L34 38 M22 70 L34 66" stroke="#10b981" stroke-width="2" stroke-linecap="round" class="pulse-emerald"></path>
+                                <!-- Gate barrier arm -->
+                                <g class="float-anim">
+                                    <circle cx="74" cy="30" r="3" fill="#10b981"></circle>
+                                    <line x1="74" y1="30" x2="40" y2="24" stroke="#10b981" stroke-width="2" stroke-linecap="round"></line>
+                                </g>
+                            </svg>
+                        </div>
+                        <div class="project-content">
+                            <h3>ALPR Gate Контрол</h3>
+                            <p>Мулти-потребителски SaaS, който отваря порта/бариера чрез разпознаване на автомобилни номера (ALPR) от камера. Управлява Shelly реле или webhook. Авто и ръчен режим на сканиране.</p>
+                            <div class="project-tags">
+                                <span class="tag">ALPR</span>
+                                <span class="tag">Plate Recognizer</span>
+                                <span class="tag">Shelly API</span>
+                                <span class="tag">PWA</span>
+                            </div>
+                            <div class="project-links">
+                                <a href="https://gate.shukov.eu" target="_blank" rel="noopener noreferrer" class="btn btn-primary" id="link-alprgate-run">Отвори</a>
+                            </div>
+                        </div>
+                    </article>
+
                     <!-- Project 1: Shelly PWA -->
                     <article class="project-card glass-panel" data-category="iot" id="card-shelly">
                         <div class="project-image">
