@@ -23,7 +23,9 @@
     --accent-orange-glow: rgba(249, 115, 22, 0.3);
     --accent-rose: #f43f5e;
     --accent-rose-glow: rgba(244, 63, 94, 0.3);
-    
+    --accent-indigo: #6366f1;
+    --accent-indigo-glow: rgba(99, 102, 241, 0.3);
+
     --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-body: 'Inter', sans-serif;
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -89,6 +91,10 @@ body {
 #card-alprgate:hover {
     border-color: rgba(16, 185, 129, 0.45);
     box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px 0 var(--accent-emerald-glow);
+}
+#card-phonebox:hover {
+    border-color: rgba(99, 102, 241, 0.45);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px 0 var(--accent-indigo-glow);
 }
 #card-shelly:hover {
     border-color: rgba(56, 189, 248, 0.45);
